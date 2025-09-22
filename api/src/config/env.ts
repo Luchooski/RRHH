@@ -12,5 +12,6 @@ export const env = {
   PORT: Number(process.env.PORT ?? 4000),
   MONGODB_URI: required('MONGODB_URI', 'mongodb://127.0.0.1:27017/match_hire'),
   CORS_ORIGIN: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
-  RATE_LIMIT_MAX: Number(process.env.RATE_LIMIT_MAX ?? 300)
+  RATE_LIMIT_MAX: Number(process.env.RATE_LIMIT_MAX ?? 300),
+  JWT_SECRET:process.env.JWT_SECRET ?? 'Crea_una_frase_larga_aleatoria'
 };

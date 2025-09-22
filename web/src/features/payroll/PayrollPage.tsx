@@ -10,8 +10,8 @@ import ConceptEditor from './ConceptEditor';
 import PayrollTemplate from './PayrollTemplate';
 import * as store from './storage';
 import { computePayroll, formatMoney } from './utils';
-import { download } from './csv';
-import { exportTemplatePdf } from './pdf';
+import { download, toCSVRecords } from './csv';
+import { exportTemplatePdf, withVisibleForCapture  } from './pdf';
 
 
 import {
@@ -28,7 +28,6 @@ import {
   type PayrollInputDTO as ApiInput,
 } from './api';
 import type { Concept } from './schema';
-
 
 /* ===== Form schema (front) ===== */
 export const PayrollInputSchema = z.object({
@@ -55,22 +54,6 @@ function useToast() {
       setTimeout(() => setMsg(null), 2500);
     },
   };
-}
-
-function toCSVRecords(rows: Array<Record<string, string | number>>): string {
-  if (!rows.length) return '';
-  const headers = Object.keys(rows[0]);
-  const esc = (v: string | number) => {
-    const s = String(v ?? '');
-    // si contiene comillas, coma o salto de línea, escapamos
-    if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-    return s;
-  };
-  const lines = [
-    headers.join(','),
-    ...rows.map(r => headers.map(h => esc(r[h] ?? '')).join(',')),
-  ];
-  return lines.join('\n');
 }
 
 export default function PayrollPage() {
@@ -138,6 +121,14 @@ export default function PayrollPage() {
   // Flag para distinguir crear vs editar (simple)
   const editIdRef = useRef<string | undefined>(undefined);
 
+  // Helpers de estado/confirm
+  const isApproved = (status?: string) => status === 'Aprobado';
+  const canMutate = (status?: string) => !isApproved(status);
+  const confirmApprove = () =>
+    window.confirm('¿Aprobar esta liquidación? Esta acción no se puede deshacer.');
+  const confirmDelete = () =>
+    window.confirm('¿Eliminar definitivamente?');
+
   const onSave = async () => {
     const ok = PayrollInputSchema.safeParse(form);
     if (!ok.success) {
@@ -158,7 +149,6 @@ export default function PayrollPage() {
           setToast('Guardada en servidor');
         }
         pushHistory('Liquidación (API)', `${dto.employeeName} ${dto.period}`);
-        // Refrescar página 0 si estamos muy lejos y disminuye total
         setPage(0);
       } catch {
         setToast('API: error al guardar');
@@ -199,12 +189,11 @@ export default function PayrollPage() {
   };
 
   const onDelete = async (id: string) => {
-    if (!confirm('¿Eliminar esta liquidación?')) return;
+    if (!confirmDelete()) return;
     if (useApi) {
       try {
         await mDeleteApi.mutateAsync(id);
         setToast('Eliminada (API)');
-        // si borramos el último de la página, retrocedemos si hace falta
         const total = qApi.data?.total ?? 0;
         const after = total - 1;
         const lastPage = Math.max(0, Math.ceil(after / pageSize) - 1);
@@ -223,25 +212,23 @@ export default function PayrollPage() {
     }
   };
 
-  // Exportar CSV (server)
+  // Exportar CSV (local)
   const csvRef = useRef<HTMLAnchorElement | null>(null);
   const exportCSVLocal = () => {
     const rows = localRows;
-    const data = rows.map(r => ({
+    const data = rows.map((r) => ({
       id: (r as any).id ?? (r as any)._id ?? '',
       empleado: r.employeeName,
       periodo: r.period,
       base: r.baseSalary,
       neto: computePayroll(r as any, (r as any).concepts ?? []).net,
       estado: r.status,
-      creado: new Date(r.createdAt).toLocaleString()
+      creado: new Date(r.createdAt).toLocaleString(),
     })) as Array<Record<string, string | number>>;
 
-    // ⬇️ Reemplazo: antes usabas toCSV(...) tipado a tus DTOs
     const csv = toCSVRecords(data);
     download(`liquidaciones_${form.period}.csv`, csv, 'text/csv');
   };
-
 
   return (
     <div className="space-y-6">
@@ -281,10 +268,10 @@ export default function PayrollPage() {
             <label className="text-xs">Período (YYYY-MM)</label>
             <input
               className="input"
+              type="month"
               value={form.period}
               onChange={(e) => {
                 set('period', e.target.value);
-                // En server, reseteamos a página 0 al cambiar período
                 setPage(0);
               }}
             />
@@ -392,12 +379,37 @@ export default function PayrollPage() {
               if (!templateRef.current) return;
               try {
                 setPdfBusy(true);
-                await exportTemplatePdf(templateRef.current, {
-                  filename: `Recibo_${form.employeeName}_${form.period}.pdf`
-                });
+        // DEBUG: log de visibilidad/tamaño/estilos
+        const el = templateRef.current;
+        const rect = el.getBoundingClientRect();
+       const cs = getComputedStyle(el);
+        console.log('[PDF DEBUG] rect:', rect);
+       console.log('[PDF DEBUG] styles:', {
+          display: cs.display,
+          visibility: cs.visibility,
+          opacity: cs.opacity,
+          backgroundColor: cs.backgroundColor,
+          color: cs.color,
+          transform: cs.transform,
+        });
+
+ await withVisibleForCapture(el, () =>
+   exportTemplatePdf(el, {
+     filename: `Recibo_${form.employeeName}_${form.period}.pdf`,
+   }),
+   { lightBg: '#ffffff', textColor: '#000' }
+ );
                 setToast('PDF generado');
-              } catch {
-                setToast('Error generando PDF');
+              } catch (err: any) {
+                const msg = err?.message ?? String(err);
+                // Log completo a consola con contexto
+                console.error('PDF error:', err);
+                // Mensaje visible al usuario
+                setToast(`Error generando PDF: ${msg}`);
+                // Como refuerzo, alert opcional en DEV
+                if (import.meta.env.DEV) {
+                  alert(`Error generando PDF:\n${msg}`);
+                }
               } finally {
                 setPdfBusy(false);
               }
@@ -473,6 +485,7 @@ export default function PayrollPage() {
       {/* Vista previa de recibo */}
       <PayrollTemplate
         ref={templateRef}
+        /* 👇 agrega este id fijo para el CSS de impresión */
         employeeName={form.employeeName}
         period={form.period}
         baseSalary={form.baseSalary}
@@ -485,6 +498,7 @@ export default function PayrollPage() {
         net={calc.net}
         applied={calc.applied}
       />
+
 
       {/* Historial */}
       <section className="card p-4 sm:p-6 space-y-3">
@@ -568,69 +582,71 @@ export default function PayrollPage() {
                         </td>
                         <td className="p-2">
                           <div className="flex gap-2 justify-end">
-                            {isDraft && (
-                              <>
-                                <button
-                                  className="btn"
-                                  disabled={pdfBusy}
-                                  onClick={async () => {
-                                    try {
-                                      setPdfBusy(true);
-                                      // 1) cargar datos en el formulario para renderizar el template
-                                      setForm({
-                                        employeeId: r.employeeId,
-                                        employeeName: r.employeeName,
-                                        period: r.period,
-                                        baseSalary: r.baseSalary,
-                                        bonuses: r.bonuses,
-                                        overtimeHours: r.overtimeHours,
-                                        overtimeRate: r.overtimeRate,
-                                        deductions: r.deductions,
-                                        taxRate: r.taxRate,
-                                        contributionsRate: r.contributionsRate
-                                      });
-                                      setConcepts((r as any).concepts ?? []);
-                                      // 2) esperar a que React pinte el template
-                                      await new Promise((res) => setTimeout(res, 120));
-                                      // 3) exportar
-                                      if (templateRef.current) {
-                                        await exportTemplatePdf(templateRef.current, {
-                                          filename: `Recibo_${r.employeeName}_${r.period}.pdf`
-                                        });
-                                        setToast('PDF generado');
-                                      } else {
-                                        setToast('No se encontró el template para exportar');
-                                      }
-                                    } catch {
-                                      setToast('Error generando PDF');
-                                    } finally {
-                                      setPdfBusy(false);
-                                    }
-                                  }}
-                                >
-                                  Recibo (PDF)
-                                </button>
-
-                                <button
-                                  className="btn"
-                                  onClick={() => {
-                                    const id = r.id as string | undefined;
-                                    const valid = !!id && /^[0-9a-fA-F]{24}$/.test(id);
-                                    if (!valid) {
-                                      console.error('ID inválido para aprobar:', id, r);
-                                      setToast('No se pudo aprobar: ID inválido');
-                                      return;
-                                    }
-                                    onApprove(id);
-                                  }}
-                                >
-                                  Aprobar
-                                </button>
-                              </>
-                            )}
-
+                            {/* Recibo PDF (permitido siempre) */}
                             <button
                               className="btn"
+                              disabled={pdfBusy}
+                              onClick={async () => {
+                                try {
+                                  setPdfBusy(true);
+                                  // 1) cargar datos en el formulario para renderizar el template
+                                  setForm({
+                                    employeeId: r.employeeId,
+                                    employeeName: r.employeeName,
+                                    period: r.period,
+                                    baseSalary: r.baseSalary,
+                                    bonuses: r.bonuses,
+                                    overtimeHours: r.overtimeHours,
+                                    overtimeRate: r.overtimeRate,
+                                    deductions: r.deductions,
+                                    taxRate: r.taxRate,
+                                    contributionsRate: r.contributionsRate,
+                                  });
+                                  setConcepts((r as any).concepts ?? []);
+                                  // 2) esperar a que React pinte el template
+                                  await new Promise((res) => setTimeout(res, 120));
+                                  // 3) exportar
+                                  if (templateRef.current) {
+                                    await exportTemplatePdf(templateRef.current, {
+                                      filename: `Recibo_${r.employeeName}_${r.period}.pdf`,
+                                    });
+                                    setToast('PDF generado');
+                                  } else {
+                                    setToast('No se encontró el template para exportar');
+                                  }
+                                } catch {
+                                  setToast('Error generando PDF');
+                                } finally {
+                                  setPdfBusy(false);
+                                }
+                              }}
+                            >
+                              Recibo (PDF)
+                            </button>
+
+                            {/* Aprobar solo si está en borrador */}
+                            {isDraft && (
+                              <button
+                                className="btn"
+                                onClick={() => {
+                                  const id = r.id as string | undefined;
+                                  const valid = !!id && /^[0-9a-fA-F]{24}$/.test(id);
+                                  if (!valid) {
+                                    console.error('ID inválido para aprobar:', id, r);
+                                    setToast('No se pudo aprobar: ID inválido');
+                                    return;
+                                  }
+                                  if (confirmApprove()) onApprove(id);
+                                }}
+                              >
+                                Aprobar
+                              </button>
+                            )}
+
+                            {/* Editar: deshabilitado si aprobada */}
+                            <button
+                              className="btn"
+                              disabled={!canMutate(r.status)}
                               onClick={() => {
                                 // cargar para edición
                                 setForm({
@@ -647,18 +663,20 @@ export default function PayrollPage() {
                                 });
                                 setConcepts((r as any).concepts ?? []);
                                 editIdRef.current = r.id;
-                                window.scrollTo({
-                                  top: 0,
-                                  behavior: 'smooth',
-                                });
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
                                 setToast('Cargada en formulario para editar');
                               }}
                             >
                               Editar
                             </button>
+
+                            {/* Borrar: deshabilitado si aprobada, con confirm */}
                             <button
                               className="btn"
-                              onClick={() => onDelete(r.id)}
+                              disabled={!canMutate(r.status)}
+                              onClick={() => {
+                                onDelete(r.id);
+                              }}
                             >
                               Borrar
                             </button>
@@ -701,7 +719,9 @@ export default function PayrollPage() {
                             {isDraft && (
                               <button
                                 className="btn"
-                                onClick={() => onApprove(r.id)}
+                                onClick={() => {
+                                  if (confirmApprove()) onApprove(r.id);
+                                }}
                               >
                                 Aprobar
                               </button>
@@ -724,10 +744,7 @@ export default function PayrollPage() {
                                 });
                                 setConcepts(r.concepts ?? []);
                                 editIdRef.current = undefined;
-                                window.scrollTo({
-                                  top: 0,
-                                  behavior: 'smooth',
-                                });
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
                                 setToast('Cargada en formulario para duplicar');
                               }}
                             >
@@ -735,7 +752,10 @@ export default function PayrollPage() {
                             </button>
                             <button
                               className="btn"
-                              onClick={() => onDelete(r.id)}
+                              disabled={!canMutate(r.status)}
+                              onClick={() => {
+                                onDelete(r.id);
+                              }}
                             >
                               Borrar
                             </button>
@@ -746,9 +766,7 @@ export default function PayrollPage() {
                   })}
 
               {/* Empty state */}
-              {(useApi
-                ? (qApi.data?.items?.length ?? 0)
-                : localRows.length) === 0 && (
+              {(useApi ? (qApi.data?.items?.length ?? 0) : localRows.length) === 0 && (
                 <tr>
                   <td className="p-6 text-center text-zinc-500" colSpan={7}>
                     No hay registros.

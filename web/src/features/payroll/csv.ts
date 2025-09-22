@@ -1,29 +1,40 @@
 import type { PayrollRecord } from './schema';
 
-function esc(s: string) {
-  return `"${s.replace(/"/g, '""')}"`;
+function esc(v: string | number) {
+  const s = String(v ?? '');
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-export function toCSV(rows: PayrollRecord[]): string {
-  const head = ['id','employeeName','period','baseSalary','bonuses','overtimeHours','overtimeRate','deductions','taxRate','contributionsRate','createdAt','updatedAt'];
-  const lines = [head.join(',')];
-  for (const r of rows) {
-    lines.push([
-      r.id,
-      r.employeeName,
-      r.period,
-      r.baseSalary,
-      r.bonuses,
-      r.overtimeHours,
-      r.overtimeRate,
-      r.deductions,
-      r.taxRate,
-      r.contributionsRate,
-      r.createdAt,
-      r.updatedAt
-    ].map(x => esc(String(x))).join(','));
-  }
+/** CSV genérico desde objetos planos */
+export function toCSVRecords(rows: Array<Record<string, string | number>>): string {
+  if (!rows.length) return '';
+  const headers = Object.keys(rows[0]);
+  const lines = [
+    headers.join(','),
+    ...rows.map((r) => headers.map((h) => esc((r as any)[h] ?? '')).join(',')),
+  ];
   return lines.join('\n');
+}
+
+/** CSV tipado de liquidaciones completas */
+export function toCSV(rows: PayrollRecord[]): string {
+  const flat = rows.map((r) => ({
+    id: r.id,
+    employeeId: r.employeeId,
+    employeeName: r.employeeName,
+    period: r.period,
+    baseSalary: r.baseSalary,
+    bonuses: r.bonuses,
+    overtimeHours: r.overtimeHours,
+    overtimeRate: r.overtimeRate,
+    deductions: r.deductions,
+    taxRate: r.taxRate,
+    contributionsRate: r.contributionsRate,
+    status: r.status,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  }));
+  return toCSVRecords(flat);
 }
 
 export function download(filename: string, content: string, mime = 'text/csv;charset=utf-8') {

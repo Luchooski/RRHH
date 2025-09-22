@@ -1,13 +1,17 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
 import {
   getCandidates,
   createCandidate,
   updateCandidate,
   deleteCandidate,
+  type Candidate,
+  type CandidateInput,
 } from './api';
-import type { Candidate, CandidateInput } from './schema';
-import { CandidateInputSchema } from './schema'; // <-- nombre correcto
+
+import { CandidateInputSchema } from './schema';
+
 import Modal from '../../components/Modal';
 import CandidateForm from './CandidateForm';
 import CandidateCard from './CandidateCard';
@@ -17,14 +21,18 @@ import Pagination from '../../components/Pagination';
 import { pushHistory } from '../history/HistoryDrawer';
 
 const PAGE_SIZE = 10 as const;
-const ESTADOS = ['Activo', 'Entrevistado', 'Oferta', 'Rechazado', 'Pausado'] as const;
+const ESTADOS = ['Todos', 'Activo', 'Entrevistado', 'Oferta', 'Rechazado', 'Pausado'] as const;
 
 export default function CandidatePage() {
   const qc = useQueryClient();
-  const { data = [], isLoading } = useQuery({
+
+  // Trae un array de Candidate
+  const { data = [], isLoading } = useQuery<Candidate[]>({
     queryKey: ['candidates'],
     queryFn: getCandidates,
   });
+
+  const rows: Candidate[] = data;
 
   // UI state
   const [open, setOpen] = useState(false);
@@ -59,14 +67,22 @@ export default function CandidatePage() {
   });
 
   // Filtros y búsqueda
-  const filtered = useMemo(() => {
+  const filtered: Candidate[] = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return data
-      .filter((c) => (estado === 'Todos' ? true : c.status.toLowerCase() === estado.toLowerCase()))
+    return rows
       .filter((c) =>
-        term ? `${c.name} ${c.email} ${c.role}`.toLowerCase().includes(term) : true
+        estado === 'Todos'
+          ? true
+          : (c.status ?? '').toLowerCase() === estado.toLowerCase()
+      )
+      .filter((c) =>
+        term
+          ? `${c.name ?? ''} ${c.email ?? ''} ${c.role ?? ''}`
+              .toLowerCase()
+              .includes(term)
+          : true
       );
-  }, [data, search, estado]);
+  }, [rows, search, estado]);
 
   // Paginación
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -106,7 +122,6 @@ export default function CandidatePage() {
             }}
             aria-label="Filtrar por estado"
           >
-            <option>Todos</option>
             {ESTADOS.map((s) => (
               <option key={s}>{s}</option>
             ))}
@@ -204,7 +219,7 @@ export default function CandidatePage() {
                   <td className="p-3 font-medium">{c.name}</td>
                   <td className="p-3">{c.email}</td>
                   <td className="p-3">{c.role}</td>
-                  <td className="p-3">{c.match}%</td>
+                  <td className="p-3">{`${c.match}%`}</td>
                   <td className="p-3">
                     <StatusBadge value={c.status} />
                   </td>
@@ -243,7 +258,7 @@ export default function CandidatePage() {
         </section>
       )}
 
-      {/* Paginación (común) */}
+      {/* Paginación */}
       {!isLoading && (
         <Pagination
           page={page}
@@ -263,20 +278,21 @@ export default function CandidatePage() {
         title={edit ? 'Editar candidato' : 'Nuevo candidato'}
       >
         <CandidateForm
-    initial={edit ?? undefined}
-    onSubmit={(payload) => {
-      if (edit) {
-        mUpdate.mutate({ id: edit.id, payload });
-      } else {
-       // Validamos y garantizamos tipo completo (no Partial)
-       const data = CandidateInputSchema.parse({
-         name: payload.name,
-         email: payload.email,
-         role: payload.role,
-         match: payload.match ?? 0,
-         status: payload.status ?? 'new',
-       });
-       mCreate.mutate(data);
+          initial={edit ?? undefined}
+          onSubmit={(payload) => {
+            if (edit) {
+              // edición parcial
+              mUpdate.mutate({ id: edit.id, payload });
+            } else {
+              // alta: validar con Zod para generar CandidateInput correcto
+              const dataParsed = CandidateInputSchema.parse({
+                name: payload.name,
+                email: payload.email,
+                role: payload.role,
+                match: payload.match,      // opcional por .partial()
+                status: payload.status,    // opcional por .partial()
+              });
+              mCreate.mutate(dataParsed);
             }
           }}
         />

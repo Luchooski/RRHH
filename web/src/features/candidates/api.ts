@@ -1,19 +1,42 @@
-import { api } from '../../lib/fetcher';
-import { CandidatesSchema, CandidateSchema } from './schema';
-import type { Candidate , CandidateInput } from './schema';
+// web/src/features/candidates/api.ts
+import api from '../../lib/fetcher';
+import type { Candidate, CandidateInput } from './schema';
 
+const BASE = '/api/v1/candidates';
+
+/**
+ * GET /api/v1/candidates
+ * Devuelve un array de Candidate
+ */
 export async function getCandidates(): Promise<Candidate[]> {
-  const data = await api<unknown>('/api/v1/candidates');
-  return CandidatesSchema.parse(data);
+  return api.get<Candidate[]>(BASE);
 }
-export async function createCandidate(input: CandidateInput): Promise<Candidate> {
-  const data = await api<unknown>('/api/v1/candidates', { method: 'POST', body: JSON.stringify(input) });
-  return CandidateSchema.parse(data);
+
+/**
+ * POST /api/v1/candidates
+ * Crea un candidato (sin id/createdAt/updatedAt)
+ */
+export async function createCandidate(payload: CandidateInput): Promise<Candidate> {
+  return api.post<Candidate>(BASE, payload);
 }
-export async function updateCandidate(id: string, input: CandidateInput): Promise<Candidate | null> {
-  const data = await api<unknown>(`/api/v1/candidates/${id}`, { method: 'PUT', body: JSON.stringify(input) });
-  return data ? CandidateSchema.parse(data) : null;
+
+/**
+ * PATCH /api/v1/candidates/:id
+ * Actualiza parcialmente un candidato
+ */
+export async function updateCandidate(
+  id: string,
+  patch: Partial<CandidateInput>
+): Promise<Candidate> {
+  return api.patch<Candidate>(`${BASE}/${id}`, patch);
 }
-export async function deleteCandidate(id: string): Promise<{ success: boolean }> {
-  return api(`/api/v1/candidates/${id}`, { method: 'DELETE' });
+
+/**
+ * DELETE /api/v1/candidates/:id
+ */
+export async function deleteCandidate(id: string): Promise<{ ok: true }> {
+  return api.delete<{ ok: true }>(`${BASE}/${id}`);
 }
+
+export type { Candidate, CandidateInput };
+export default { getCandidates, createCandidate, updateCandidate, deleteCandidate };

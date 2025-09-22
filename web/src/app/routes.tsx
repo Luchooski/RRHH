@@ -1,5 +1,7 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import App from './App';
+import { useAuth } from '../features/auth/auth';
+import LoginPage from '../features/auth/LoginPage';
 import DashboardPage from '../features/dashboard/DashboardPage';
 import CandidatesPage from '../features/candidates/CandidatePage';
 import InterviewsPage from '../features/interviews/InterviewsPage';
@@ -9,10 +11,22 @@ import PayrollPage from '../features/payroll/PayrollPage';
 import SchedulesPage from '../features/schedules/SchedulesPage';
 import NotFound from '../pages/NotFound';
 
+function PublicLayout() {
+  return <Outlet />;
+}
+
+function ProtectedLayout() {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="p-6">Cargando sesión…</div>;
+  if (!user) return <Navigate to="/login" replace />;
+  return <App />; // App debe renderizar <Outlet />
+}
+
 const router = createBrowserRouter([
+  { element: <PublicLayout />, children: [{ path: '/login', element: <LoginPage /> }] },
   {
     path: '/',
-    element: <App />,
+    element: <ProtectedLayout />,
     children: [
       { index: true, element: <DashboardPage /> },
       { path: 'candidatos', element: <CandidatesPage /> },
@@ -21,11 +35,10 @@ const router = createBrowserRouter([
       { path: 'empleados', element: <EmployeesPage /> },
       { path: 'liquidaciones', element: <PayrollPage /> },
       { path: 'horarios', element: <SchedulesPage /> },
-      // Solo mantenemos la ruta /historial por compatibilidad, muestra Dashboard
       { path: 'historial', element: <DashboardPage /> },
-      { path: '*', element: <NotFound /> }
-    ]
-  }
+      { path: '*', element: <NotFound /> },
+    ],
+  },
 ]);
 
 export default router;
