@@ -4,9 +4,11 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(),tailwindcss()],
+  envDir: __dirname,
   server: {
     host: true,        // escucha en 0.0.0.0 (necesario en algunas setups de Windows/WSL)
     port: 5173,
+  
     strictPort: true,  // si 5173 está ocupado, falla en vez de cambiar de puerto (útil para depurar)
     hmr: {
       host: 'localhost', // fuerza el host que usa el cliente HMR

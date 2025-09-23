@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!t) { setLoading(false); return; }
     (async () => {
       try {
-        const u = await http<User>('/api/v1/auth/me', { method: 'GET' });
+        const u = await http.get<User>('/api/v1/auth/me');
         setUser(u);
         localStorage.setItem(KEY_USER, JSON.stringify(u));
       } catch {
@@ -56,10 +56,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     loading,
     async login(email: string, password: string) {
-      const res = await http<{ token: string; user: User }>('/api/v1/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      });
+      const res = await http.post<{ token: string; user: User }>(
+        '/api/v1/auth/login',
+        { email, password },
+        { auth: false } // no adjunta Authorization en login
+      );
       setToken(res.token);
       setUser(res.user);
       localStorage.setItem(KEY_USER, JSON.stringify(res.user));

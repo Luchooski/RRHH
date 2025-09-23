@@ -1,7 +1,6 @@
 // web/src/features/payroll/api.ts
 import { z } from 'zod';
 
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
 
 /** ===== Schemas compatibles con el backend ===== */
 export const PeriodRegex = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -59,38 +58,11 @@ export const ListOutDTO = z.object({
   items: z.array(PayrollDTO),
   total: z.number().int().min(0)
 });
-
-/** ===== Http helper ===== */
-async function request<T>(path: string, init?: RequestInit, schema?: z.Schema<T>): Promise<T> {
-  const url = `${BASE}${path}`;
-
-  // ✅ Solo seteamos Content-Type si hay body
-  const headers: Record<string, string> = {};
-  if (init?.body !== undefined) {
-    headers['Content-Type'] = 'application/json';
-  }
-  // Merge con headers entrantes (si los hubiera)
-  const mergedInit: RequestInit = {
-    ...init,
-    headers: { ...(init?.headers as any), ...headers }
-  };
-
-  const res = await fetch(url, mergedInit);
-  if (!res.ok) {
-    let txt = '';
-    try { txt = await res.text(); } catch {}
-    throw new Error(txt || `HTTP ${res.status}`);
-  }
-  if (res.status === 204) return undefined as unknown as T;
-
-  const json = await res.json().catch(() => ({}));
-  const data = (json?.data ?? json) as unknown;
-  return schema ? schema.parse(data) : (data as T);
-}
+export type ListOut = z.infer<typeof ListOutDTO>;
 
 /** ===== API ===== */
 export async function apiHealth(): Promise<boolean> {
-  try { await http('/api/v1/health'); return true; } catch { return false; }
+  try { await http.get('/api/v1/health'); return true; } catch { return false; }
 }
 
 export async function listPayrolls(params: {
@@ -102,35 +74,41 @@ export async function listPayrolls(params: {
   if (params.limit)  qs.set('limit', String(params.limit));
   if (params.skip)   qs.set('skip', String(params.skip));
   const q = qs.toString() ? `?${qs.toString()}` : '';
-  return http<ListOutDTO>(`/api/v1/payrolls${q}`);
+  const raw = await http.get<any>(`/api/v1/payrolls${q}`);
+  // Normalizamos posibles formas de respuesta:
+  // - { items, total }
+  // - { data: { items, total } }
+  const data = (raw?.data ?? raw) as { items?: any[]; total?: number };
+  const items = Array.isArray(data.items) ? data.items : [];
+  const total = typeof data.total === 'number' ? data.total : items.length;
+  // Map `_id` -> `id` si hace falta
+  const norm = items.map((it) => ({
+    id: it.id ?? it._id ?? '',
+    ...it,
+  }));
+  console.debug('[payrolls] received', { total, count: norm.length, first: norm[0] });
+  return { items: norm, total } as ListOut;
 }
 
 export async function createPayroll(body: PayrollInputDTO) {
-  return http<PayrollDTO>('/api/v1/payrolls', {
-    method: 'POST',
-    body: JSON.stringify(body)
-  });
+  return http.post<PayrollDTO>('/api/v1/payrolls', body);
 }
 
 export async function approvePayroll(id: string) {
   const safeId = encodeURIComponent(id);
-  return http<{ id: string; status: 'Borrador'|'Aprobado' }>(
-    `/api/v1/payrolls/${safeId}/approve`,
-    { method: 'PATCH' }
+  return http.patch<{ id: string; status: 'Borrador'|'Aprobado' }>(
+    `/api/v1/payrolls/${safeId}/approve`
   );
 }
 
 export async function deletePayroll(id: string) {
-  await http<void>(`/api/v1/payrolls/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  await http.delete<void>(`/api/v1/payrolls/${encodeURIComponent(id)}`);
 }
 export async function getPayroll(id: string) {
-  return http<PayrollDTO>(`/api/v1/payrolls/${encodeURIComponent(id)}`);
+  return http.get<PayrollDTO>(`/api/v1/payrolls/${encodeURIComponent(id)}`);
 }
 export async function updatePayroll(id: string, body: Partial<PayrollInputDTO>) {
-  return http<PayrollDTO>(`/api/v1/payrolls/${encodeURIComponent(id)}`, {
-    method: 'PUT',
-    body: JSON.stringify(body)
-  });
+  return http.put<PayrollDTO>(`/api/v1/payrolls/${encodeURIComponent(id)}`, body);
 }
 export async function bulkCreate(body: {
   period: string;
@@ -141,10 +119,7 @@ export async function bulkCreate(body: {
   concepts: ConceptDTO[];
   employees: { employeeId: string; employeeName: string; baseSalary: number; }[];
 }) {
-  return http<{ created: number }>('/api/v1/payrolls/bulk', {
-    method: 'POST',
-    body: JSON.stringify(body)
-  });
+  return http.post<{ created: number }>('/api/v1/payrolls/bulk', body);
 }
 export function exportCsvUrl(params: { period?: string; status?: 'Borrador'|'Aprobado' }) {
   const qs = new URLSearchParams();

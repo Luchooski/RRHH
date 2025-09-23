@@ -229,6 +229,7 @@ export default function PayrollPage() {
     const csv = toCSVRecords(data);
     download(`liquidaciones_${form.period}.csv`, csv, 'text/csv');
   };
+  
 
   return (
     <div className="space-y-6">
