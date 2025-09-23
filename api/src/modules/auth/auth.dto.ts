@@ -15,3 +15,11 @@ export const LoginOutput = z.object({
   }),
 });
 export type LoginOutput = z.infer<typeof LoginOutput>;
+
+// 👇 NUEVO
+export const MeOutput = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  role: z.string(),
+});
+export type MeOutput = z.infer<typeof MeOutput>;

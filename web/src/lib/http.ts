@@ -1,3 +1,4 @@
+// web/src/lib/http.ts
 let TOKEN: string | null = null;
 
 export function setToken(t: string | null) {
@@ -11,20 +12,22 @@ export function getToken() {
   return TOKEN;
 }
 
-// Base URL robusta (usa VITE_API_URL o fallback a :4000 en dev)
 const RAW = (import.meta as any)?.env?.VITE_API_URL as string | undefined;
 const DEV_GUESS =
   typeof window !== 'undefined' && window.location?.port === '5173'
     ? 'http://localhost:4000'
     : '';
-const API_BASE = (RAW && RAW.trim().replace(/\/+$/, '')) || DEV_GUESS;
+const API_BASE = (RAW?.replace(/\/+$/, '') || DEV_GUESS);
 
 function buildUrl(path: string) {
   if (!path.startsWith('/')) path = '/' + path;
   return API_BASE ? `${API_BASE}${path}` : path;
 }
 
-// Permite que AuthProvider instale un callback para 401
+export function apiUrl(path: string) {
+  return buildUrl(path);
+}
+
 let onUnauthorized: (() => void) | null = null;
 export function setOnUnauthorized(cb: (() => void) | null) {
   onUnauthorized = cb;
@@ -32,23 +35,23 @@ export function setOnUnauthorized(cb: (() => void) | null) {
 
 export async function http<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
-  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  if (!headers.has('Content-Type') && init.body !== undefined) {
+    headers.set('Content-Type', 'application/json');
+  }
   const token = getToken();
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
   const url = buildUrl(path);
-  // console.debug('[http]', { url, API_BASE, path, hasToken: !!token });
-
   const res = await fetch(url, { ...init, headers });
-  // Intentamos parsear JSON, si falla devolvemos texto
+
   const text = await res.text().catch(() => '');
   let data: any = {};
   try { data = text ? JSON.parse(text) : {}; } catch { data = text; }
 
   if (!res.ok) {
-    if (res.status === 401 && onUnauthorized) onUnauthorized(); // 🔒
+    if (res.status === 401 && onUnauthorized) onUnauthorized();
     const msg =
-      (data && typeof data === 'object' && data.error?.message) ||
+      (data && typeof data === 'object' && (data.error?.message ?? data.message)) ||
       `HTTP ${res.status} ${res.statusText}`;
     throw new Error(msg);
   }

@@ -1,7 +1,9 @@
 import type { FastifyInstance } from 'fastify';
-import { loginHandler } from './auth.controller.js';
+import { loginHandler, meHandler } from './auth.controller.js';
+import { authGuard } from '../../middlewares/auth.js';
 
 export default async function authRoutes(app: FastifyInstance) {
-  // Importante: SIN /api/v1 acá (ya lo pusimos en app.ts)
+  // SIN /api/v1 acá si se usa prefix en app.ts
   app.post('/auth/login', loginHandler);
+  app.get('/auth/me', { preHandler: authGuard() }, meHandler);
 }

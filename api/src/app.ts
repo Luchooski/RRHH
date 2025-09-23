@@ -7,49 +7,47 @@ import { env } from './config/env.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { notFound } from './middlewares/not-found.js';
 import { payrollRoutes } from './modules/payroll/payroll.routes.js';
-
 import authRoutes from './modules/auth/auth.routes.js';
 import { authGuard } from './middlewares/auth.js';
 import { ensureSeedAdmin } from './modules/auth/auth.service.js';
+import { healthRoutes } from './modules/health/health.routes.js';
 
 export function buildApp() {
-  const app = Fastify({
-    logger: env.NODE_ENV === 'production'
-      ? true
-      : { transport: { target: 'pino-pretty' } }
-  });
+  const app = Fastify({ logger: false });
 
-    app.register(cors, {
-    origin: env.CORS_ORIGIN,         // p.ej. http://localhost:5173
-    credentials: true,
+  // CORS (incluye Authorization)
+  app.register(cors, {
+    origin: env.CORS_ORIGIN,
     methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
     allowedHeaders: ['Content-Type','Authorization'],
-    exposedHeaders: ['Content-Disposition'] // para export.csv
+    credentials: true,
   });
 
+  // Rate limit
   app.register(rateLimit, { max: env.RATE_LIMIT_MAX, timeWindow: '1 minute' });
 
-  app.get('/api/v1/health', async () => ({ ok: true, uptime: process.uptime() }));
+  // Health
+  app.register(healthRoutes);
 
+  // Auth con prefijo /api/v1
+  app.register(authRoutes, { prefix: '/api/v1' });
+
+  // Payrolls ya tienen URLs absolutas /api/v1/... => registrar sin prefijo adicional
   app.register(payrollRoutes);
 
+  // Proteger /api/v1/payrolls* (todo ese árbol)
+  app.addHook('preHandler', async (req, reply) => {
+    if (req.url.startsWith('/api/v1/payrolls')) {
+      await authGuard()(req, reply);
+    }
+  });
+
+  // Errores y 404
   app.setErrorHandler(errorHandler);
   app.setNotFoundHandler(notFound);
 
-  // auth (público)
-  app.register(authRoutes, { prefix: '/api/v1' });
-
-  // payrolls protegido (ejemplo): antes de registrar sus rutas
-app.addHook('preHandler', async (req, reply) => {
-  // protege todo lo que pegue al prefijo /api/v1/payrolls
-  if (req.url.startsWith('/api/v1/payrolls')) {
-    await authGuard()(req, reply);
-  }
-});
-
-  // seed (una sola vez al levantar en dev)
+  // Seed admin (dev)
   ensureSeedAdmin().catch(console.error);
-
 
   return app;
 }

@@ -11,6 +11,8 @@ export const CalcBase = z.enum(['imponible','bruto','neto_previo','personalizado
 export const Phase = z.enum(['pre_tax','post_tax']);
 export const RoundMode = z.enum(['none','nearest','down','up']);
 
+import { http, apiUrl } from '../../lib/http';
+
 export const ConceptDTO = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -88,43 +90,47 @@ async function request<T>(path: string, init?: RequestInit, schema?: z.Schema<T>
 
 /** ===== API ===== */
 export async function apiHealth(): Promise<boolean> {
-  try { await request('/api/v1/health'); return true; } catch { return false; }
+  try { await http('/api/v1/health'); return true; } catch { return false; }
 }
 
-export async function listPayrolls(params: { period?: string; status?: 'Borrador'|'Aprobado'; limit?: number; skip?: number } = {}) {
+export async function listPayrolls(params: {
+  period?: string; status?: 'Borrador'|'Aprobado'; limit?: number; skip?: number
+} = {}) {
   const qs = new URLSearchParams();
   if (params.period) qs.set('period', params.period);
   if (params.status) qs.set('status', params.status);
   if (params.limit)  qs.set('limit', String(params.limit));
   if (params.skip)   qs.set('skip', String(params.skip));
   const q = qs.toString() ? `?${qs.toString()}` : '';
-  return request(`/api/v1/payrolls${q}`, { method: 'GET' }, ListOutDTO);
+  return http<ListOutDTO>(`/api/v1/payrolls${q}`);
 }
 
 export async function createPayroll(body: PayrollInputDTO) {
-  return request('/api/v1/payrolls', { method: 'POST', body: JSON.stringify(body) }, PayrollDTO);
+  return http<PayrollDTO>('/api/v1/payrolls', {
+    method: 'POST',
+    body: JSON.stringify(body)
+  });
 }
 
 export async function approvePayroll(id: string) {
   const safeId = encodeURIComponent(id);
-  // Log de diagnóstico (lo podés quitar luego)
-  // eslint-disable-next-line no-console
-  console.log('[approvePayroll] id', id, 'url', `${BASE}/api/v1/payrolls/${safeId}/approve`);
-  return request(
+  return http<{ id: string; status: 'Borrador'|'Aprobado' }>(
     `/api/v1/payrolls/${safeId}/approve`,
-    { method: 'PATCH' },
-    z.object({ id: z.string(), status: PayrollStatus })
+    { method: 'PATCH' }
   );
 }
 
 export async function deletePayroll(id: string) {
-  await request(`/api/v1/payrolls/${id}`, { method: 'DELETE' });
+  await http<void>(`/api/v1/payrolls/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 export async function getPayroll(id: string) {
-  return request(`/api/v1/payrolls/${id}`, { method: 'GET' }, PayrollDTO);
+  return http<PayrollDTO>(`/api/v1/payrolls/${encodeURIComponent(id)}`);
 }
 export async function updatePayroll(id: string, body: Partial<PayrollInputDTO>) {
-  return request(`/api/v1/payrolls/${id}`, { method: 'PUT', body: JSON.stringify(body) }, PayrollDTO);
+  return http<PayrollDTO>(`/api/v1/payrolls/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(body)
+  });
 }
 export async function bulkCreate(body: {
   period: string;
@@ -135,11 +141,14 @@ export async function bulkCreate(body: {
   concepts: ConceptDTO[];
   employees: { employeeId: string; employeeName: string; baseSalary: number; }[];
 }) {
-  return request('/api/v1/payrolls/bulk', { method: 'POST', body: JSON.stringify(body) }, z.object({ created: z.number().int().min(1) }));
+  return http<{ created: number }>('/api/v1/payrolls/bulk', {
+    method: 'POST',
+    body: JSON.stringify(body)
+  });
 }
 export function exportCsvUrl(params: { period?: string; status?: 'Borrador'|'Aprobado' }) {
   const qs = new URLSearchParams();
   if (params.period) qs.set('period', params.period);
   if (params.status) qs.set('status', params.status);
-  return `${BASE}/api/v1/payrolls/export.csv?${qs.toString()}`;
+  return apiUrl(`/api/v1/payrolls/export.csv?${qs.toString()}`);
 }
