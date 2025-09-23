@@ -2,8 +2,9 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
+import cookie from '@fastify/cookie'; // <-- NUEVO
 
-import { env } from './config/env.js';
+import { env, useCookie, isProd } from './config/env.js'; // <-- import helpers
 import { errorHandler } from './middlewares/error-handler.js';
 import { notFound } from './middlewares/not-found.js';
 import { payrollRoutes } from './modules/payroll/payroll.routes.js';
@@ -20,8 +21,22 @@ export function buildApp() {
     origin: env.CORS_ORIGIN,
     methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
     allowedHeaders: ['Content-Type','Authorization'],
-    credentials: true,
+    // credentials TRUE solo si vas a usar cookie httpOnly desde browser
+    credentials: useCookie,
   });
+
+  // Cookie plugin (solo si AUTH_COOKIE=true)
+  if (useCookie) {
+    app.register(cookie, {
+      secret: env.COOKIE_SECRET,
+      hook: 'onRequest',
+      parseOptions: {
+        sameSite: 'lax',
+        secure: isProd, // en prod: true (HTTPS)
+        path: '/',
+      },
+    });
+  }
 
   // Rate limit
   app.register(rateLimit, { max: env.RATE_LIMIT_MAX, timeWindow: '1 minute' });

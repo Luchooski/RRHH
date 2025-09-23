@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom';
-import Topbar from '../components/TopBar';
+import Topbar from '../components/Topbar';
 import { useEffect, useState } from 'react';
 import HistoryDrawer from '../features/history/HistoryDrawer';
 import SidebarItem from '../components/SidebarItem';

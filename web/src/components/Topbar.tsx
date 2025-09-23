@@ -1,6 +1,7 @@
 import ThemeToggle from './ThemeToggle';
-import { useLocation } from 'react-router-dom';
-import { Menu, History } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Menu, History, LogOut } from 'lucide-react';
+import { useAuth } from '../features/auth/auth';
 
 export default function Topbar({
   onOpenHistory,
@@ -10,6 +11,8 @@ export default function Topbar({
   onToggleSidebar?: () => void;
 }) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const title =
     pathname.startsWith('/candidatos') ? 'Candidatos' :
     pathname.startsWith('/entrevistas') ? 'Entrevistas' :
@@ -45,6 +48,21 @@ export default function Topbar({
                 Ver historial
               </button>
             </>
+          )}
+          {user && (
+            <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground mr-1">
+              <span>{user.email}</span>
+            </div>
+          )}
+          {user && (
+            <button
+              className="btn btn-outline inline-flex items-center gap-2"
+              onClick={() => { logout(); navigate('/login', { replace: true }); }}
+              title="Cerrar sesión"
+            >
+              <LogOut size={16} />
+              <span className="hidden sm:inline">Salir</span>
+            </button>
           )}
           <ThemeToggle />
         </div>
