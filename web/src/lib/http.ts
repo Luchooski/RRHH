@@ -68,6 +68,28 @@ async function request<T>(path: string, opts: HttpOptions = {}): Promise<T> {
   return data;
 }
 
+// 👉 Versión “raw blob” (no intenta parsear JSON) para archivos/CSV
+async function requestBlob(path: string, opts: HttpOptions = {}): Promise<Blob> {
+  const url = apiUrl(path);
+  const headers = new Headers(opts.headers || {});
+  const token = getToken();
+  const shouldAuth = opts.auth !== false;
+  if (shouldAuth && token) headers.set('Authorization', `Bearer ${token}`);
+  // Content-Type NO se setea: lo define el server (text/csv)
+  console.debug('[HTTP/blob]', opts.method || 'GET', url, { hasToken: !!token });
+  const res = await fetch(url, { ...opts, headers });
+  if (res.status === 401) {
+    onUnauthorized?.();
+    throw new Error('UNAUTHORIZED');
+  }
+  if (!res.ok) {
+    let text = '';
+    try { text = await res.text(); } catch {}
+    throw new Error(text || `HTTP ${res.status}`);
+  }
+  return await res.blob();
+}
+
 export const http = {
   get:   <T>(path: string, opts?: HttpOptions) => request<T>(path, { ...opts, method: 'GET' }),
   post:  <T>(path: string, body?: unknown, opts?: HttpOptions) =>
@@ -78,4 +100,5 @@ export const http = {
     request<T>(path, { ...opts, method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
   delete:<T>(path: string, opts?: HttpOptions) =>
     request<T>(path, { ...opts, method: 'DELETE' }),
+  blob:  (path: string, opts?: HttpOptions) => requestBlob(path, { ...opts, method: 'GET' }),
 };

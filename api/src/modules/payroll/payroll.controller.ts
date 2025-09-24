@@ -15,15 +15,23 @@ import {
   removePayroll,
   getById,
   updateById,
-  bulkCreate,
-  exportCSV
+  bulkCreate
 } from './payroll.service.js';
 import { ok } from '../../utils/http.js';
-import { Payroll } from './payroll.model.js';
+import { Payroll, type PayrollDoc } from './payroll.model.js';
 import { isValidObjectId } from 'mongoose';
 
 import { format } from '@fast-csv/format';
 import { computeDerived } from './payroll.calc.js';
+import { PassThrough } from 'stream';
+
+// ✅ Resultado de .lean() con virtuals: incluye id:string
+type LeanPayroll = Omit<PayrollDoc, '_id'> & {
+  id: string;
+  _id?: any;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 /** Crear */
 export async function postCreate(req: FastifyRequest, reply: FastifyReply) {
@@ -63,7 +71,7 @@ export async function getList(req: FastifyRequest, reply: FastifyReply) {
       .sort({ period: -1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .lean({ virtuals: true }),
+      .lean<LeanPayroll>({ virtuals: true }),
     Payroll.countDocuments(filter),
   ]);
 
@@ -194,24 +202,53 @@ export async function getExportCsvCtrl(req: FastifyRequest, reply: FastifyReply)
   }
   const { period, employee, status, limit, skip } = parsed.data;
 
-  // Filtros (mismos que listado; exporta todo si no pasan limit/skip)
   const filter: Record<string, any> = {};
   if (period) filter.period = period;
   if (employee) filter.employeeId = employee;
   if (status) filter.status = status;
 
   reply.header('Content-Type', 'text/csv; charset=utf-8');
-  reply.header('Content-Disposition', `attachment; filename="payrolls${period ? '_' + period : ''}.csv"`);
+  reply.header(
+    'Content-Disposition',
+    `attachment; filename="liquidaciones${period ? '_' + period : ''}.csv"`
+  );
 
-  const stream = format({ headers: true });
-  stream.pipe(reply.raw);
+  // ── Helpers ES ────────────────────────────────────────────────────────────────
+  const fmtDateES = (x: any) => {
+    if (!x) return '';
+    const d = new Date(x);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  };
+  const nES = (v: any, opts?: Intl.NumberFormatOptions) =>
+    (typeof v === 'number' ? v : Number(v ?? 0)).toLocaleString('es-AR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+      ...opts,
+    });
+  const intES = (v: any) => Math.round(Number(v ?? 0)).toLocaleString('es-AR');
 
-  // Si nos pasan limit/skip, respetar; si no, stream de todo el filtro
-  const q = Payroll.find(filter).sort({ period: -1, createdAt: -1 }).lean({ virtuals: true });
+  // ── Stream CSV (CORS OK, Excel-friendly) ─────────────────────────────────────
+  const pass = new PassThrough();
+  reply.send(pass);
+  // BOM + directiva sep=; para Excel español
+  pass.write('\uFEFFsep=;\r\n');
+
+  const csv = format({
+    headers: true,
+    delimiter: ';',
+    rowDelimiter: '\r\n',
+    quoteColumns: true, // cita textos/fechas
+  });
+  csv.pipe(pass);
+
+  const q = Payroll.find(filter)
+    .sort({ period: -1, createdAt: -1 })
+    .lean<LeanPayroll>({ virtuals: true });
   if (typeof skip === 'number') q.skip(skip);
   if (typeof limit === 'number') q.limit(limit);
 
-  const cursor = q.cursor();
+  const cursor = q.cursor(); // AsyncIterable<LeanPayroll>
   for await (const doc of cursor) {
     const d = computeDerived({
       baseSalary: doc.baseSalary,
@@ -226,31 +263,32 @@ export async function getExportCsvCtrl(req: FastifyRequest, reply: FastifyReply)
       })),
     });
 
-    stream.write({
-      id: doc._id,
-      employeeId: doc.employeeId,
-      employeeName: doc.employeeName,
-      period: doc.period,
-      baseSalary: doc.baseSalary,
-      bonuses: doc.bonuses ?? 0,
-      overtimeHours: doc.overtimeHours ?? 0,
-      overtimeRate: doc.overtimeRate ?? 0,
-      overtimeAmount: d.overtimeAmount,
-      deductions: doc.deductions ?? 0,
-      taxRate: doc.taxRate ?? 0,
-      contributionsRate: doc.contributionsRate ?? 0,
-      gross: d.gross,
-      nonRemuneratives: d.nonRemuneratives,
-      taxes: d.taxes,
-      contributions: d.contributions,
-      conceptsDeductions: d.conceptsDeductions,
-      net: d.net,
-      status: doc.status,
-      createdAt: doc.createdAt,
-      updatedAt: doc.updatedAt,
+    csv.write({
+      'ID': doc._id,
+      'Legajo': doc.employeeId,
+      'Empleado': doc.employeeName,
+      'Periodo (AAAA-MM)': doc.period,
+      'Sueldo base': nES(doc.baseSalary),
+      'Bonos': nES(doc.bonuses ?? 0),
+      'Horas extra': intES(doc.overtimeHours ?? 0),
+      'Valor hora extra': nES(doc.overtimeRate ?? 0),
+      'Monto horas extra': nES(d.overtimeAmount),
+      'Deducciones manuales': nES(doc.deductions ?? 0),
+      'Impuestos (%)': nES(doc.taxRate ?? 0, { minimumFractionDigits: 0, maximumFractionDigits: 2 }),
+      'Aportes (%)': nES(doc.contributionsRate ?? 0, { minimumFractionDigits: 0, maximumFractionDigits: 2 }),
+      'Bruto': nES(d.gross),
+      'No remunerativos': nES(d.nonRemuneratives),
+      'Impuestos (monto)': nES(d.taxes),
+      'Aportes (monto)': nES(d.contributions),
+      'Deducciones por conceptos': nES(d.conceptsDeductions),
+      'Neto': nES(d.net),
+      'Estado': doc.status,
+      'Creado': fmtDateES(doc.createdAt),
+      'Actualizado': fmtDateES(doc.updatedAt),
     });
   }
-  stream.end();
+
+  csv.end();
 }
 
 /** ====== OPCIONAL: endpoints por employeeId + period ====== */

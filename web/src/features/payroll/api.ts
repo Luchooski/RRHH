@@ -1,6 +1,5 @@
-// web/src/features/payroll/api.ts
+import { http, apiUrl } from '../../lib/http';
 import { z } from 'zod';
-
 
 /** ===== Schemas compatibles con el backend ===== */
 export const PeriodRegex = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -9,8 +8,6 @@ export const ConceptMode = z.enum(['monto','porcentaje']);
 export const CalcBase = z.enum(['imponible','bruto','neto_previo','personalizado']);
 export const Phase = z.enum(['pre_tax','post_tax']);
 export const RoundMode = z.enum(['none','nearest','down','up']);
-
-import { http, apiUrl } from '../../lib/http';
 
 export const ConceptDTO = z.object({
   id: z.string().min(1),
@@ -126,4 +123,20 @@ export function exportCsvUrl(params: { period?: string; status?: 'Borrador'|'Apr
   if (params.period) qs.set('period', params.period);
   if (params.status) qs.set('status', params.status);
   return apiUrl(`/api/v1/payrolls/export.csv?${qs.toString()}`);
+}
+// 👉 Descarga CSV usando Authorization (para endpoints protegidos)
+export async function downloadCsv(params: { period?: string; status?: 'Borrador'|'Aprobado' }) {
+  const qs = new URLSearchParams();
+  if (params.period) qs.set('period', params.period);
+  if (params.status) qs.set('status', params.status);
+  const path = `/api/v1/payrolls/export.csv?${qs.toString()}`;
+  const blob = await http.blob(path);               // mantiene Authorization
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `payrolls${params.period ? '_' + params.period : ''}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }

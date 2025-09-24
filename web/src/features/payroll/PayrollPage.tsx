@@ -24,7 +24,7 @@ import {
 } from './hooks';
 import {
   listPayrolls,
-  exportCsvUrl,
+  downloadCsv,
   type PayrollInputDTO as ApiInput,
 } from './api';
 import type { Concept } from './schema';
@@ -422,17 +422,21 @@ export default function PayrollPage() {
             {editIdRef.current ? 'Guardar cambios' : 'Guardar'}
           </button>
 
-          {useApi ? (
-            <button
-              className="btn"
-              onClick={() => {
-                const url = exportCsvUrl({ period: form.period });
-                window.open(url, '_blank');
-              }}
-            >
-              Exportar CSV (servidor)
-            </button>
-          ) : (
+ {useApi ? (
+   <button
+     className="btn"
+     onClick={async () => {
+       try {
+         await downloadCsv({ period: form.period });
+       } catch (e:any) {
+         console.error('CSV error', e);
+         alert(e?.message || 'Error exportando CSV');
+       }
+     }}
+   >
+     Exportar CSV (servidor)
+   </button>
+ ) : (
             <>
               <a ref={csvRef as any} className="hidden" />
               <button className="btn" onClick={exportCSVLocal}>
