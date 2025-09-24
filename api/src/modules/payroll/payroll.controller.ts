@@ -22,6 +22,9 @@ import { ok } from '../../utils/http.js';
 import { Payroll } from './payroll.model.js';
 import { isValidObjectId } from 'mongoose';
 
+import { format } from '@fast-csv/format';
+import { computeDerived } from './payroll.calc.js';
+
 /** Crear */
 export async function postCreate(req: FastifyRequest, reply: FastifyReply) {
   const parsed = PayrollInputDTO.safeParse(req.body);
@@ -44,20 +47,27 @@ export async function postCreate(req: FastifyRequest, reply: FastifyReply) {
 export async function getList(req: FastifyRequest, reply: FastifyReply) {
   const parsed = ListQueryDTO.safeParse(req.query);
   if (!parsed.success) {
-    return reply
-      .status(400)
-      .send({ error: { code: 'ValidationError', message: 'Invalid query', details: parsed.error.issues } });
+    return reply.status(400).send({
+      error: { code: 'BAD_REQUEST', message: 'Invalid query', details: parsed.error.flatten() },
+    });
   }
-  const { items, total } = await listPayrolls(parsed.data);
-  const mapped = items.map((i) =>
-    PayrollDTO.parse({
-      ...i,
-      id: String(i._id),
-      createdAt: i.createdAt?.toISOString?.() ?? '',
-      updatedAt: i.updatedAt?.toISOString?.() ?? ''
-    })
-  );
-  return reply.send(ok({ items: mapped, total }));
+  const { period, employee, status, limit = 20, skip = 0 } = parsed.data;
+
+  const filter: Record<string, any> = {};
+  if (period) filter.period = period;
+  if (employee) filter.employeeId = employee;
+  if (status) filter.status = status;
+
+  const [items, total] = await Promise.all([
+    Payroll.find(filter)
+      .sort({ period: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean({ virtuals: true }),
+    Payroll.countDocuments(filter),
+  ]);
+
+  return reply.send({ items, total });
 }
 
 /** Aprobar */
@@ -176,16 +186,71 @@ export async function postBulkCreateCtrl(req: FastifyRequest, reply: FastifyRepl
 
 /** Export CSV */
 export async function getExportCsvCtrl(req: FastifyRequest, reply: FastifyReply) {
-  const q = ExportQueryDTO.safeParse(req.query);
-  if (!q.success) {
-    return reply
-      .status(400)
-      .send({ error: { code: 'ValidationError', message: 'Invalid query', details: q.error.issues } });
+  const parsed = ExportQueryDTO.safeParse(req.query);
+  if (!parsed.success) {
+    return reply.status(400).send({
+      error: { code: 'BAD_REQUEST', message: 'Invalid query', details: parsed.error.flatten() },
+    });
   }
-  const csv = await exportCSV(q.data);
+  const { period, employee, status, limit, skip } = parsed.data;
+
+  // Filtros (mismos que listado; exporta todo si no pasan limit/skip)
+  const filter: Record<string, any> = {};
+  if (period) filter.period = period;
+  if (employee) filter.employeeId = employee;
+  if (status) filter.status = status;
+
   reply.header('Content-Type', 'text/csv; charset=utf-8');
-  reply.header('Content-Disposition', 'attachment; filename="payrolls.csv"');
-  return reply.send(csv);
+  reply.header('Content-Disposition', `attachment; filename="payrolls${period ? '_' + period : ''}.csv"`);
+
+  const stream = format({ headers: true });
+  stream.pipe(reply.raw);
+
+  // Si nos pasan limit/skip, respetar; si no, stream de todo el filtro
+  const q = Payroll.find(filter).sort({ period: -1, createdAt: -1 }).lean({ virtuals: true });
+  if (typeof skip === 'number') q.skip(skip);
+  if (typeof limit === 'number') q.limit(limit);
+
+  const cursor = q.cursor();
+  for await (const doc of cursor) {
+    const d = computeDerived({
+      baseSalary: doc.baseSalary,
+      bonuses: doc.bonuses,
+      overtimeHours: doc.overtimeHours,
+      overtimeRate: doc.overtimeRate,
+      deductions: doc.deductions,
+      taxRate: doc.taxRate,
+      contributionsRate: doc.contributionsRate,
+      concepts: (doc.concepts ?? []).map((c: any) => ({
+        id: c.id, name: c.name, type: c.type, mode: c.mode, value: c.value,
+      })),
+    });
+
+    stream.write({
+      id: doc._id,
+      employeeId: doc.employeeId,
+      employeeName: doc.employeeName,
+      period: doc.period,
+      baseSalary: doc.baseSalary,
+      bonuses: doc.bonuses ?? 0,
+      overtimeHours: doc.overtimeHours ?? 0,
+      overtimeRate: doc.overtimeRate ?? 0,
+      overtimeAmount: d.overtimeAmount,
+      deductions: doc.deductions ?? 0,
+      taxRate: doc.taxRate ?? 0,
+      contributionsRate: doc.contributionsRate ?? 0,
+      gross: d.gross,
+      nonRemuneratives: d.nonRemuneratives,
+      taxes: d.taxes,
+      contributions: d.contributions,
+      conceptsDeductions: d.conceptsDeductions,
+      net: d.net,
+      status: doc.status,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+    });
+  }
+  stream.end();
 }
 
 /** ====== OPCIONAL: endpoints por employeeId + period ====== */
