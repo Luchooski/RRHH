@@ -2,7 +2,9 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
-import cookie from '@fastify/cookie'; // <-- NUEVO
+import cookie from '@fastify/cookie'; 
+import { ZodTypeProvider, serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
+
 
 import { env, useCookie, isProd } from './config/env.js'; // <-- import helpers
 import { errorHandler } from './middlewares/error-handler.js';
@@ -13,8 +15,10 @@ import { authGuard } from './middlewares/auth.js';
 import { ensureSeedAdmin } from './modules/auth/auth.service.js';
 import { healthRoutes } from './modules/health/health.routes.js';
 
+import { employeeRoutes } from '../src/modules/employee/employee.routes.js';
+
 export function buildApp() {
-  const app = Fastify({ logger: false });
+const app = Fastify({ logger: true }).withTypeProvider<ZodTypeProvider>();
 
   // CORS (incluye Authorization)
   app.register(cors, {
@@ -49,6 +53,9 @@ export function buildApp() {
 
   // Payrolls ya tienen URLs absolutas /api/v1/... => registrar sin prefijo adicional
   app.register(payrollRoutes);
+
+  //employees
+  app.register(employeeRoutes);
 
   // Proteger /api/v1/payrolls* (todo ese árbol)
   app.addHook('preHandler', async (req, reply) => {

@@ -30,6 +30,7 @@ export const env = {
   // Cookie config
   COOKIE_NAME: process.env.COOKIE_NAME ?? 'token',
   COOKIE_SECRET: process.env.COOKIE_SECRET ?? '',
+
 };
 
 // Helpers

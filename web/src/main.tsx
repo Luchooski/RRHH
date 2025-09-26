@@ -8,6 +8,7 @@ import { queryClient } from './lib/queryClient';
 import { ThemeProvider } from './app/ThemeProvider';
 import './styles/print.css';
 import { AuthProvider } from './features/auth/auth';
+import { Suspense } from 'react';
 
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
@@ -16,8 +17,9 @@ createRoot(document.getElementById('root')!).render(
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <RouterProvider router={router} />
-        </AuthProvider>
+          <Suspense fallback={<div className="p-6">Cargando…</div>}>
+            <RouterProvider router={router} />
+          </Suspense>        </AuthProvider>
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>
     </ThemeProvider>
