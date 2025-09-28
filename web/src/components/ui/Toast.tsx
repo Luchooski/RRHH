@@ -16,23 +16,25 @@ export function ToastProvider({ children }:{ children:React.ReactNode }) {
   const clear=useCallback(()=>setToasts([]),[]);
   const value=useMemo(()=>({toasts,push,remove,clear}),[toasts,push,remove,clear]);
 
-  return <>
-    <Ctx.Provider value={value}>{children}</Ctx.Provider>
-    <div aria-live="polite" aria-atomic="true" className="pointer-events-none fixed inset-x-0 top-2 z-50 flex flex-col items-center gap-2 px-2">
-      {toasts.map(t=>(
-        <div key={t.id} role="status"
-          className={[
-            'pointer-events-auto w-full max-w-sm rounded-2xl p-3 shadow-lg text-sm',
-            t.kind==='success'&&'bg-emerald-50 text-emerald-900 border border-emerald-200',
-            t.kind==='error'  &&'bg-rose-50 text-rose-900 border border-rose-200',
-            t.kind==='info'   &&'bg-slate-50 text-slate-900 border border-slate-200'
-          ].filter(Boolean).join(' ')}
-        >
-          {t.title && <div className="font-medium mb-0.5">{t.title}</div>}
-          <div>{t.message}</div>
-        </div>
-      ))}
-    </div>
-  </>;
+  return (
+    <Ctx.Provider value={value}>
+      {children}
+      <div aria-live="polite" aria-atomic="true" className="pointer-events-none fixed inset-x-0 top-2 z-50 flex flex-col items-center gap-2 px-2">
+        {toasts.map(t=>(
+          <div key={t.id} role="status"
+            className={[
+              'pointer-events-auto w-full max-w-sm rounded-2xl p-3 shadow-lg text-sm',
+              t.kind==='success'&&'bg-emerald-50 text-emerald-900 border border-emerald-200',
+              t.kind==='error'  &&'bg-rose-50 text-rose-900 border border-rose-200',
+              t.kind==='info'   &&'bg-slate-50 text-slate-900 border border-slate-200'
+            ].filter(Boolean).join(' ')}
+          >
+            {t.title && <div className="font-medium mb-0.5">{t.title}</div>}
+            <div>{t.message}</div>
+          </div>
+        ))}
+      </div>
+    </Ctx.Provider>
+  );
 }
 export function useToast(){ const ctx=useContext(Ctx); if(!ctx) throw new Error('useToast must be used within <ToastProvider>'); return ctx; }
