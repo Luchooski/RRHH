@@ -11,7 +11,7 @@ const CandidateSchema = new Schema(
   { timestamps: true }
 );
 
-CandidateSchema.index({ name: 'text', role: 'text' });
+CandidateSchema.index({ status: 1, createdAt: -1 });
 
 export type CandidateDoc = {
   _id: string;

@@ -16,6 +16,8 @@ import { employeeRoutes } from './modules/employee/employee.routes.js';
 import { authGuard } from './middlewares/auth.js';
 import { ensureSeedAdmin } from './modules/auth/auth.service.js';
 
+import { candidateRoutes } from './modules/candidates/candidate.routes.js';
+
 
 export function buildApp() {
   const app = Fastify({
@@ -60,6 +62,7 @@ export function buildApp() {
   app.register(authRoutes, { prefix: '/api/v1' });
   app.register(payrollRoutes);
   app.register(employeeRoutes);
+  app.register(candidateRoutes);
 
   // Proteger árboles
   app.addHook('preHandler', async (req, reply) => {

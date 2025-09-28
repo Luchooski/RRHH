@@ -23,3 +23,13 @@ export const CandidateOutputSchema = z.object({
 
 export const CandidatesListSchema = z.array(CandidateOutputSchema);
 export type CandidateInput = z.infer<typeof CandidateInputSchema>;
+
+export const CandidateUpdateSchema = CandidateInputSchema.partial();
+export type CandidateUpdate = z.infer<typeof CandidateUpdateSchema>;
+
+export const CandidateQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  skip: z.coerce.number().int().min(0).default(0),
+  q: z.string().trim().optional(),
+  status: z.string().trim().optional()
+});
