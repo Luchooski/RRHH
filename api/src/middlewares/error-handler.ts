@@ -1,24 +1,32 @@
-// api/src/middlewares/error-handler.ts
-import { FastifyError, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
 
 export function errorHandler(
-  err: FastifyError & { name?: string },
-  _req: FastifyRequest,
+  err: FastifyError & { code?: string; validation?: unknown },
+  req: FastifyRequest,
   reply: FastifyReply
 ) {
-  // CastError -> 400
-  if (err?.name === 'CastError') {
-    return reply.status(400).send({ error: { code: 'CastError', message: 'Invalid ObjectId' } });
+  const status = (err.statusCode as number) || 500;
+  const name = (err as any).name || 'Error';
+
+  req.log.error(
+    {
+      errName: name,
+      errCode: err.code,
+      status,
+      route: `${req.method} ${req.url}`,
+      msg: err.message,
+      stack: err.stack,
+    },
+    'Unhandled error'
+  );
+
+  if (name === 'CastError' || name === 'ValidationError') {
+    return reply.status(400).send({ error: { code: name.toUpperCase(), message: err.message || 'Bad request' } });
   }
-
-  const status = typeof err.statusCode === 'number' && err.statusCode >= 400
-    ? err.statusCode
-    : 500;
-
-  reply.status(status).send({
-    error: {
-      code: err.code || 'InternalError',
-      message: err.message || 'Unexpected error'
-    }
+  if ((err as any).validation) {
+    return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid request' } });
+  }
+  return reply.status(status).send({
+    error: { code: err.code || 'INTERNAL', message: err.message || 'Unexpected error' },
   });
 }

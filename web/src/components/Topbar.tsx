@@ -37,6 +37,12 @@ export default function Topbar({
           <h2 className="text-sm text-[--color-muted]">{title}</h2>
         </div>
         <div className="flex items-center gap-2">
+          
+          {user && (
+            <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground mr-1">
+              <span>{user.email}</span>
+            </div>
+          )}
           {onOpenHistory && (
             <>
               {/* Móvil: icono */}
@@ -44,27 +50,24 @@ export default function Topbar({
                 <History size={18} />
               </button>
               {/* ≥sm: botón con texto */}
-              <button className="btn hidden sm:inline-flex items-center" onClick={onOpenHistory}>
-                Ver historial
-              </button>
+
             </>
           )}
-          {user && (
-            <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground mr-1">
-              <span>{user.email}</span>
-            </div>
-          )}
+          <ThemeToggle />
           {user && (
             <button
               className="btn btn-outline inline-flex items-center gap-2"
-              onClick={() => { logout(); navigate('/login', { replace: true }); }}
+              onClick={async () => {                      // ← async handler
+                await logout();                           // ← esperar a que el server borre cookie
+                navigate('/login', { replace: true });
+              }}
               title="Cerrar sesión"
             >
               <LogOut size={16} />
               <span className="hidden sm:inline">Salir</span>
             </button>
           )}
-          <ThemeToggle />
+          
         </div>
       </div>
     </header>

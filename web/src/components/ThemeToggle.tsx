@@ -9,7 +9,7 @@ export default function ThemeToggle() {
     <button className="btn inline-flex items-center gap-2" aria-label="Cambiar tema"
       onClick={() => setTheme(isDark ? 'light' : 'dark')}>
       {isDark ? <Sun size={16} /> : <Moon size={16} />}
-      {isDark ? 'Claro' : 'Oscuro'}
+
     </button>
   );
 }

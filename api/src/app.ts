@@ -2,74 +2,82 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
-import cookie from '@fastify/cookie'; 
+import helmet from '@fastify/helmet';
+import cookie from '@fastify/cookie';
 import { ZodTypeProvider, serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 
-
-import { env, useCookie, isProd } from './config/env.js'; // <-- import helpers
+import { env, useCookie, isProd } from './config/env.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { notFound } from './middlewares/not-found.js';
-import { payrollRoutes } from './modules/payroll/payroll.routes.js';
+import { healthRoutes } from './modules/health/health.routes.js';
 import authRoutes from './modules/auth/auth.routes.js';
+import { payrollRoutes } from './modules/payroll/payroll.routes.js';
+import { employeeRoutes } from './modules/employee/employee.routes.js';
 import { authGuard } from './middlewares/auth.js';
 import { ensureSeedAdmin } from './modules/auth/auth.service.js';
-import { healthRoutes } from './modules/health/health.routes.js';
 
-import { employeeRoutes } from '../src/modules/employee/employee.routes.js';
 
 export function buildApp() {
-const app = Fastify({ logger: true }).withTypeProvider<ZodTypeProvider>();
+  const app = Fastify({
+    logger: { level: env.NODE_ENV === 'production' ? 'info' : 'debug' },
+    trustProxy: true,
+  }).withTypeProvider<ZodTypeProvider>();
 
-  // CORS (incluye Authorization)
-  app.register(cors, {
-    origin: env.CORS_ORIGIN,
-    methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-    allowedHeaders: ['Content-Type','Authorization'],
-    // credentials TRUE solo si vas a usar cookie httpOnly desde browser
-    credentials: useCookie,
-  });
+  // Zod compilers
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
 
-  // Cookie plugin (solo si AUTH_COOKIE=true)
-  if (useCookie) {
-    app.register(cookie, {
-      secret: env.COOKIE_SECRET,
-      hook: 'onRequest',
-      parseOptions: {
-        sameSite: 'lax',
-        secure: isProd, // en prod: true (HTTPS)
-        path: '/',
-      },
-    });
-  }
+  // Seguridad
+  app.register(helmet, { contentSecurityPolicy: false });
 
   // Rate limit
   app.register(rateLimit, { max: env.RATE_LIMIT_MAX, timeWindow: '1 minute' });
 
-  // Health
+  // CORS
+  const origins = env.CORS_ORIGIN.split(',').map((s) => s.trim());
+  app.register(cors, {
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      const ok = origins.includes(origin);
+      cb(ok ? null : new Error('CORS not allowed'), ok);
+    },
+    credentials: useCookie,
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+    maxAge: 86400,
+  });
+
+  // Cookies si corresponde
+  if (useCookie) {
+    app.register(cookie, {
+      secret: env.COOKIE_SECRET,
+      hook: 'onRequest',
+    });
+  }
+
+  // Rutas
   app.register(healthRoutes);
-
-  // Auth con prefijo /api/v1
   app.register(authRoutes, { prefix: '/api/v1' });
-
-  // Payrolls ya tienen URLs absolutas /api/v1/... => registrar sin prefijo adicional
   app.register(payrollRoutes);
-
-  //employees
   app.register(employeeRoutes);
 
-  // Proteger /api/v1/payrolls* (todo ese árbol)
+  // Proteger árboles
   app.addHook('preHandler', async (req, reply) => {
-    if (req.url.startsWith('/api/v1/payrolls')) {
+    if (req.url.startsWith('/api/v1/payrolls') || req.url.startsWith('/api/v1/employees')) {
       await authGuard()(req, reply);
     }
   });
 
-  // Errores y 404
+  // Errores
   app.setErrorHandler(errorHandler);
   app.setNotFoundHandler(notFound);
 
-  // Seed admin (dev)
-  ensureSeedAdmin().catch(console.error);
+  // Seed admin en dev
+  if (!isProd) ensureSeedAdmin().catch(app.log.error.bind(app.log));
+
+  app.ready().then(() => {
+  app.log.info('\n' + app.printRoutes());
+});
 
   return app;
 }

@@ -1,41 +1,42 @@
-import { type FastifyRequest, type FastifyReply } from 'fastify';
+import { FastifyReply, FastifyRequest } from 'fastify';
 import jwt from 'jsonwebtoken';
-import { env } from '../config/env.js';
+import { env, useCookie } from '../config/env.js';
 
-function getTokenFromHeader(req: FastifyRequest): string | null {
-  const auth = req.headers.authorization;
-  if (!auth?.startsWith('Bearer ')) return null;
-  return auth.slice(7).trim() || null;
+export type JwtPayload = { sub: string; email: string; role: string; iat: number; exp: number };
+
+// Extrae token desde Authorization: Bearer ... o cookie httpOnly
+export function extractToken(req: FastifyRequest): string | null {
+  const h = req.headers['authorization'];
+  if (h && typeof h === 'string' && h.startsWith('Bearer ')) {
+    return h.slice('Bearer '.length).trim();
+  }
+  if (useCookie) {
+    const name = env.COOKIE_NAME || 'token';
+    const fromCookie = (req.cookies?.[name] as string | undefined) || null;
+    if (fromCookie) return fromCookie;
+  }
+  return null;
 }
 
-function getTokenFromCookie(req: FastifyRequest): string | null {
-  // Fastify cookie plugin debe estar registrado en app.ts (ya suele estar)
-  const cookieName = env.COOKIE_NAME || 'token';
-  const token = req.cookies?.[cookieName];
-  return token || null;
+export function verifyToken(token: string): JwtPayload | null {
+  try {
+    return jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+  } catch {
+    return null;
+  }
 }
 
+// Guard opcional para rutas protegidas completas
 export function authGuard() {
-  const allowHeader = env.AUTH_HEADER !== 'false';
-  const allowCookie = env.AUTH_COOKIE === 'true';
-
   return async (req: FastifyRequest, reply: FastifyReply) => {
-    let token: string | null = null;
-
-    if (allowHeader) token = getTokenFromHeader(req);
-    if (!token && allowCookie) token = getTokenFromCookie(req);
-
+    const token = extractToken(req);
     if (!token) {
-      req.log?.info({ path: req.url }, 'auth: missing token'); // log amigable
       return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Missing token' } });
     }
-
-    try {
-      const payload = jwt.verify(token, env.JWT_SECRET) as { sub: string; role?: string };
-      (req as any).user = { id: payload.sub, role: payload.role ?? 'hr' };
-    } catch (e) {
-      req.log?.warn({ err: e, path: req.url }, 'auth: invalid token');
+    const payload = verifyToken(token);
+    if (!payload) {
       return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Invalid token' } });
     }
+    (req as any).user = { id: payload.sub, email: payload.email, role: payload.role };
   };
 }

@@ -1,104 +1,102 @@
 // web/src/lib/http.ts
-type HttpOptions = RequestInit & { auth?: boolean };
+export type HttpOptions = RequestInit & { auth?: boolean };
 
 const rawBase = (import.meta.env.VITE_API_URL || '').trim();
 const API_BASE = (rawBase || 'http://localhost:4000').replace(/\/+$/, '');
 
-// Logs de diagnóstico (aparecen una sola vez)
-console.log('[HTTP] import.meta.env snapshot (recortado):', {
-  MODE: import.meta.env.MODE,
-  DEV: import.meta.env.DEV,
-  PROD: import.meta.env.PROD,
-  VITE_API_URL: import.meta.env.VITE_API_URL,
-});
-if (!rawBase) {
-  console.warn(
-    '[HTTP] VITE_API_URL no definido. Usando fallback http://localhost:4000. ' +
-    'Creá /web/.env con VITE_API_URL y reiniciá Vite para evitar este warning.'
-  );
-}
-console.log('[HTTP] API_BASE =', API_BASE);
+let __token: string | null =
+  (typeof localStorage !== 'undefined' && localStorage.getItem('auth_token')) || null;
+let __onUnauthorized: null | (() => void) = null;
 
-const TOKEN_KEY = 'auth_token';
-
-export function setToken(token: string | null) {
-  if (!token) localStorage.removeItem(TOKEN_KEY);
-  else localStorage.setItem(TOKEN_KEY, token);
-}
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+export function setToken(t: string | null) {
+  __token = t;
+  if (typeof localStorage !== 'undefined') {
+    if (t) localStorage.setItem('auth_token', t);
+    else localStorage.removeItem('auth_token');
+  }
 }
 
-let onUnauthorized: (() => void) | null = null;
-export function setOnUnauthorized(cb: (() => void) | null) {
-  onUnauthorized = cb || null;
+export function setOnUnauthorized(fn: (() => void) | null) {
+  __onUnauthorized = fn;
 }
 
-export function apiUrl(path: string) {
-  if (path.startsWith('http')) return path;
-  return `${API_BASE}${path}`;
+function buildUrl(path: string) {
+  const p = path.startsWith('/') ? path : '/' + path;
+  return API_BASE + p;
 }
 
 async function request<T>(path: string, opts: HttpOptions = {}): Promise<T> {
-  const url = apiUrl(path);
   const headers = new Headers(opts.headers || {});
-  const token = getToken();
+  if (!headers.has('Accept')) headers.set('Accept', 'application/json');
 
-  const shouldAuth = opts.auth !== false;
-  if (shouldAuth && token) headers.set('Authorization', `Bearer ${token}`);
-  if (!headers.has('Content-Type') && opts.body) headers.set('Content-Type', 'application/json');
+  const hasBodyMethod =
+    (opts.method && !['GET', 'HEAD'].includes(opts.method)) || opts.body != null;
+  if (!headers.has('Content-Type') && hasBodyMethod) {
+    headers.set('Content-Type', 'application/json');
+  }
 
-  console.debug('[HTTP]', opts.method || 'GET', url, { hasToken: !!token });
+  const useAuth = opts.auth !== false;
+  if (useAuth && __token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${__token}`);
+  }
 
-  const res = await fetch(url, { ...opts, headers });
-  // Log de resultado (una línea)
-  console.debug('[HTTP:res]', res.status, res.statusText, url);
+  const res = await fetch(buildUrl(path), {
+    ...opts,
+    headers,
+    credentials: 'include',
+    cache: 'no-store',
+  }).catch((err) => {
+    throw new Error(`NETWORK_ERROR: ${err?.message || String(err)}`);
+  });
 
   if (res.status === 401) {
-    onUnauthorized?.();
+    __onUnauthorized?.();
     throw new Error('UNAUTHORIZED');
   }
+
+  const text = await res.text();
+  const json = text ? (() => { try { return JSON.parse(text); } catch { return null; } })() : null;
+
   if (!res.ok) {
-    let text = '';
-    try { text = await res.text(); } catch {}
-    throw new Error(text || `HTTP ${res.status}`);
+    const msg = (json && (json.error?.message || json.message)) || `HTTP_${res.status}`;
+    const code = (json && (json.error?.code || json.code)) || 'HTTP_ERROR';
+    const error = new Error(`${code}: ${msg}`);
+    (error as any).status = res.status;
+    (error as any).body = json ?? text;
+    throw error;
   }
-  if (res.status === 204) return undefined as unknown as T;
-  const data = (await res.json()) as T;
-  return data;
+
+  return (json ?? (undefined as any)) as T;
 }
 
-// 👉 Versión “raw blob” (no intenta parsear JSON) para archivos/CSV
 async function requestBlob(path: string, opts: HttpOptions = {}): Promise<Blob> {
-  const url = apiUrl(path);
   const headers = new Headers(opts.headers || {});
-  const token = getToken();
-  const shouldAuth = opts.auth !== false;
-  if (shouldAuth && token) headers.set('Authorization', `Bearer ${token}`);
-  // Content-Type NO se setea: lo define el server (text/csv)
-  console.debug('[HTTP/blob]', opts.method || 'GET', url, { hasToken: !!token });
-  const res = await fetch(url, { ...opts, headers });
-  if (res.status === 401) {
-    onUnauthorized?.();
-    throw new Error('UNAUTHORIZED');
+  const useAuth = opts.auth !== false;
+  if (useAuth && __token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${__token}`);
   }
-  if (!res.ok) {
-    let text = '';
-    try { text = await res.text(); } catch {}
-    throw new Error(text || `HTTP ${res.status}`);
-  }
+  const res = await fetch(buildUrl(path), {
+    ...opts,
+    headers,
+    credentials: 'include',
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(`HTTP_${res.status}`);
   return await res.blob();
 }
 
 export const http = {
   get:   <T>(path: string, opts?: HttpOptions) => request<T>(path, { ...opts, method: 'GET' }),
   post:  <T>(path: string, body?: unknown, opts?: HttpOptions) =>
-    request<T>(path, { ...opts, method: 'POST', body: body ? JSON.stringify(body) : undefined }),
+    request<T>(path, { ...opts, method: 'POST', body: body != null ? JSON.stringify(body) : undefined }),
   put:   <T>(path: string, body?: unknown, opts?: HttpOptions) =>
-    request<T>(path, { ...opts, method: 'PUT', body: body ? JSON.stringify(body) : undefined }),
+    request<T>(path, { ...opts, method: 'PUT', body: body != null ? JSON.stringify(body) : undefined }),
   patch: <T>(path: string, body?: unknown, opts?: HttpOptions) =>
-    request<T>(path, { ...opts, method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
+    request<T>(path, { ...opts, method: 'PATCH', body: body != null ? JSON.stringify(body) : undefined }),
   delete:<T>(path: string, opts?: HttpOptions) =>
     request<T>(path, { ...opts, method: 'DELETE' }),
   blob:  (path: string, opts?: HttpOptions) => requestBlob(path, { ...opts, method: 'GET' }),
 };
+
+// ← Export de compatibilidad para imports existentes:
+export const apiUrl = API_BASE;

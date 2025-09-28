@@ -1,36 +1,38 @@
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { UserModel, type UserDoc } from '../user/user.model.js';
-import type { LoginInput } from './auth.dto.js';
+import bcrypt from 'bcryptjs';
 import { env } from '../../config/env.js';
+import { UserModel } from '../user/user.model.js';
 
-export async function login(input: LoginInput) {
-  // No usamos .lean() para tener tipos de doc hidratado
-  const user: UserDoc | null = await UserModel.findOne({ email: input.email }).exec();
+type LoginArgs = { email: string; password: string };
+type LoginResult = { token: string; user: { id: string; email: string; role: string } } | null;
+
+export async function login({ email, password }: LoginArgs): Promise<LoginResult> {
+  const user = await UserModel.findOne({ email }).lean(false).exec(); // lean(false) para tener doc si usás métodos
   if (!user) return null;
 
-  const ok = await bcrypt.compare(input.password, user.passwordHash);
+  // Detectar campo de hash flexible: passwordHash o password
+  const hash: unknown = (user as any).passwordHash ?? (user as any).password;
+  if (typeof hash !== 'string' || !hash) return null; // usuario mal cargado → tratar como credenciales inválidas
+
+  const ok = await bcrypt.compare(password, hash);
   if (!ok) return null;
 
   const token = jwt.sign(
-    { sub: String(user._id), role: user.role },
+    { sub: String(user._id), email: user.email, role: (user as any).role ?? 'user' },
     env.JWT_SECRET,
-    { expiresIn: '7d' }
+    { expiresIn: '8h' }
   );
 
   return {
     token,
-    user: { id: String(user._id), email: user.email, role: user.role },
+    user: { id: String(user._id), email: user.email, role: (user as any).role ?? 'user' },
   };
 }
 
 export async function ensureSeedAdmin() {
-  const email = 'admin@demo.com';
-  const pass = 'admin123'; // demo ONLY
-  const exists = await UserModel.findOne({ email }).exec();
-  if (exists) return;
-  const hash = await bcrypt.hash(pass, 10);
-  await UserModel.create({ email, passwordHash: hash, role: 'hr' });
-  // eslint-disable-next-line no-console
-  console.log(`[seed] user: ${email} / ${pass}`);
+  const exists = await UserModel.findOne({ email: 'admin@demo.com' }).exec();
+  if (!exists) {
+    const hash = await bcrypt.hash('admin123', 10);
+    await UserModel.create({ email: 'admin@demo.com', passwordHash: hash, role: 'admin' });
+  }
 }
