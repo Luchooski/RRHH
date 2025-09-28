@@ -1,21 +1,28 @@
 // web/src/lib/api.ts
-import { http } from './http';
+import { http, setToken } from './http';
 
-type User = { id: string; email: string; role: string };
+export type LoginBody = { email: string; password: string };
+export type LoginRes = { token: string };
 
-export const AuthApi={
-  login:(email:string,password:string)=>http.post<{token:string;user:User}>('/api/v1/auth/login',{email,password},{auth:false}),
-  me:()=>http.get<User>('/api/v1/auth/me'),
-  logout:()=>http.post<{ok:boolean}>('/api/v1/auth/logout',undefined)
+export const api = {
+  // Auth
+  login: (body: LoginBody) => http.post<LoginRes>('/api/v1/auth/login', body),
+  me: () => http.get<{ id: string; email: string; role: string }>('/api/v1/auth/me', { auth: true }),
+  logout: async () => {
+    try {
+      await http.post<{ ok: boolean }>('/api/v1/auth/logout', undefined, { auth: true });
+    } catch {
+      // Ignorar; igual limpiamos el token abajo
+    } finally {
+      setToken(null);
+    }
+  },
+
+  // Ejemplos de otros recursos (ajusta según tus rutas reales)
+  employees: {
+    list: () => http.get<any[]>('/api/v1/employees', { auth: true }),
+  },
+  candidates: {
+    list: (qs = 'limit=20&skip=0') => http.get<any[]>(`/api/v1/candidates?${qs}`, { auth: true }),
+  },
 };
-
-export const HealthApi = {
-  ping: () => http.get<{ status: 'ok' }>('/api/v1/health'),
-};
-
-// Para construir URLs absolutas (descargas, imágenes, etc.)
-export function buildApiUrl(path: string) {
-  const base = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
-  const p = path.startsWith('/') ? path : '/' + path;
-  return base + p;
-}

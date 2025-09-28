@@ -1,6 +1,6 @@
 import StatusBadge from '../../components/StatusBadge';
 import KebabMenu from '../../components/KebabMenu';
-import type { Candidate } from './schema';
+import type { Candidate } from './dto';
 
 export default function CandidateCard({
   c, onEdit, onDelete

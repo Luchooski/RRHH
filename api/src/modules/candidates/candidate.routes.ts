@@ -6,66 +6,95 @@ import {
   CandidateOutputSchema,
   CandidatesListSchema,
   CandidateQuerySchema,
-  CandidateUpdateSchema
+  CandidateUpdateSchema,
 } from './candidate.dto.js';
-import { createCandidate, deleteCandidate, listCandidates, updateCandidate, getCandidateById } from './candidate.service.js';
 import { z } from 'zod';
 import { authGuard } from '../../middlewares/auth.js';
+import {
+  listCandidates,
+  getCandidateById,
+  createCandidate,
+  updateCandidate,
+  deleteCandidate,
+} from './candidate.service.js';
 
 export async function candidateRoutes(app: FastifyInstance) {
+  // GET /api/v1/candidates (búsqueda avanzada)
   app.withTypeProvider<ZodTypeProvider>().route({
     method: 'GET',
     url: '/api/v1/candidates',
-    schema: { querystring: CandidateQuerySchema, response: { 200: CandidatesListSchema } },
+    schema: {
+      querystring: CandidateQuerySchema,
+      response: { 200: CandidatesListSchema },
+    },
     preHandler: authGuard(),
     handler: async (req) => {
-      const { limit, skip, q, status } = req.query as z.infer<typeof CandidateQuerySchema>;
-      return listCandidates(limit, skip, q, status);
-    }
+      const q = req.query as z.infer<typeof CandidateQuerySchema>;
+      // listCandidates AHORA espera UN objeto con todos los filtros
+      return listCandidates({
+        limit: q.limit,
+        skip: q.skip,
+        q: q.q,
+        status: q.status,
+        role: q.role,
+        matchMin: q.matchMin,
+        matchMax: q.matchMax,
+        createdFrom: q.createdFrom, // ya viene coerceado a Date por Zod
+        createdTo: q.createdTo,
+        sortField: q.sortField,
+        sortDir: q.sortDir,
+      });
+    },
   });
 
-    // NUEVO: Get by id
+  // GET /api/v1/candidates/:id
   app.withTypeProvider<ZodTypeProvider>().route({
     method: 'GET',
     url: '/api/v1/candidates/:id',
     schema: { params: CandidateIdSchema, response: { 200: CandidateOutputSchema.nullable() } },
     preHandler: authGuard(),
-    handler: async (req) => getCandidateById((req.params as { id: string }).id)
+    handler: async (req) => {
+      const { id } = req.params as z.infer<typeof CandidateIdSchema>;
+      return getCandidateById(id);
+    },
   });
 
+  // POST /api/v1/candidates
   app.withTypeProvider<ZodTypeProvider>().route({
     method: 'POST',
     url: '/api/v1/candidates',
     schema: { body: CandidateInputSchema, response: { 201: CandidateOutputSchema } },
     preHandler: authGuard(),
     handler: async (req, reply) => {
-      const created = await createCandidate(req.body);
-      reply.code(201).send(created);
-    }
+      const body = req.body as z.infer<typeof CandidateInputSchema>;
+      const created = await createCandidate(body);
+      reply.code(201);
+      return created;
+    },
   });
 
-app.withTypeProvider<ZodTypeProvider>().route({
-    method: 'PUT',
-    url: '/api/v1/candidates/:id',
-    schema: { params: CandidateIdSchema, body: CandidateUpdateSchema, response: { 200: CandidateOutputSchema.nullable() } },
-    preHandler: authGuard(),
-    handler: async (req) => updateCandidate((req.params as { id: string }).id, req.body as z.infer<typeof CandidateUpdateSchema>)
-  });
-
-    app.withTypeProvider<ZodTypeProvider>().route({
+  // PATCH /api/v1/candidates/:id
+  app.withTypeProvider<ZodTypeProvider>().route({
     method: 'PATCH',
     url: '/api/v1/candidates/:id',
     schema: { params: CandidateIdSchema, body: CandidateUpdateSchema, response: { 200: CandidateOutputSchema.nullable() } },
     preHandler: authGuard(),
-    handler: async (req) => updateCandidate((req.params as { id: string }).id, req.body as z.infer<typeof CandidateUpdateSchema>)
-   });
+    handler: async (req) => {
+      const { id } = req.params as z.infer<typeof CandidateIdSchema>;
+      const body = req.body as z.infer<typeof CandidateUpdateSchema>;
+      return updateCandidate(id, body);
+    },
+  });
 
-   app.withTypeProvider<ZodTypeProvider>().route({
-     method: 'DELETE',
-     url: '/api/v1/candidates/:id',
+  // DELETE /api/v1/candidates/:id
+  app.withTypeProvider<ZodTypeProvider>().route({
+    method: 'DELETE',
+    url: '/api/v1/candidates/:id',
     schema: { params: CandidateIdSchema, response: { 200: z.object({ success: z.boolean() }) } },
     preHandler: authGuard(),
-    handler: async (req) => ({ success: await deleteCandidate((req.params as { id: string }).id) })
+    handler: async (req) => {
+      const { id } = req.params as z.infer<typeof CandidateIdSchema>;
+      return { success: await deleteCandidate(id) };
+    },
   });
 }
-

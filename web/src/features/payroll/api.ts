@@ -71,14 +71,10 @@ export async function listPayrolls(params: {
   if (params.limit)  qs.set('limit', String(params.limit));
   if (params.skip)   qs.set('skip', String(params.skip));
   const q = qs.toString() ? `?${qs.toString()}` : '';
-  const raw = await http.get<any>(`/api/v1/payrolls${q}`);
-  // Normalizamos posibles formas de respuesta:
-  // - { items, total }
-  // - { data: { items, total } }
+  const raw = await http.get<any>(`/api/v1/payrolls${q}`, { auth: true });
   const data = (raw?.data ?? raw) as { items?: any[]; total?: number };
   const items = Array.isArray(data.items) ? data.items : [];
   const total = typeof data.total === 'number' ? data.total : items.length;
-  // Map `_id` -> `id` si hace falta
   const norm = items.map((it) => ({
     id: it.id ?? it._id ?? '',
     ...it,
@@ -88,24 +84,22 @@ export async function listPayrolls(params: {
 }
 
 export async function createPayroll(body: PayrollInputDTO) {
-  return http.post<PayrollDTO>('/api/v1/payrolls', body);
+  return http.post<PayrollDTO>('/api/v1/payrolls', body, { auth: true });
 }
 
 export async function approvePayroll(id: string) {
   const safeId = encodeURIComponent(id);
-  return http.patch<{ id: string; status: 'Borrador'|'Aprobado' }>(
-    `/api/v1/payrolls/${safeId}/approve`
-  );
+  return http.patch<PayrollDTO>(`/api/v1/payrolls/${safeId}/approve`, {}, { auth: true });
 }
 
 export async function deletePayroll(id: string) {
-  await http.delete<void>(`/api/v1/payrolls/${encodeURIComponent(id)}`);
+  return http.delete<{ success: boolean }>(`/api/v1/payrolls/${id}`, { auth: true });
 }
 export async function getPayroll(id: string) {
-  return http.get<PayrollDTO>(`/api/v1/payrolls/${encodeURIComponent(id)}`);
+  return http.get<PayrollDTO>(`/api/v1/payrolls/${id}`, { auth: true });
 }
-export async function updatePayroll(id: string, body: Partial<PayrollInputDTO>) {
-  return http.put<PayrollDTO>(`/api/v1/payrolls/${encodeURIComponent(id)}`, body);
+export async function updatePayroll(id: string, patch: Partial<PayrollInputDTO>) {
+  return http.patch<PayrollDTO>(`/api/v1/payrolls/${id}`, patch, { auth: true });
 }
 export async function bulkCreate(body: {
   period: string;
@@ -116,7 +110,7 @@ export async function bulkCreate(body: {
   concepts: ConceptDTO[];
   employees: { employeeId: string; employeeName: string; baseSalary: number; }[];
 }) {
-  return http.post<{ created: number }>('/api/v1/payrolls/bulk', body);
+   return http.post<{ created: number }>('/api/v1/payrolls/bulk', body, { auth: true });
 }
 export function exportCsvUrl(params: { period?: string; status?: 'Borrador'|'Aprobado' }) {
   const qs = new URLSearchParams();
@@ -130,7 +124,7 @@ export async function downloadCsv(params: { period?: string; status?: 'Borrador'
   if (params.period) qs.set('period', params.period);
   if (params.status) qs.set('status', params.status);
   const path = `/api/v1/payrolls/export.csv?${qs.toString()}`;
-  const blob = await http.blob(path);               // mantiene Authorization
+   const blob = await http.blob(path, { auth: true });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

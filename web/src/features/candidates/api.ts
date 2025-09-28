@@ -4,7 +4,7 @@ import { CandidateOutput, CandidateCreateSchema, CandidateQuerySchema } from './
 import { http } from '../../lib/http';
 import { z } from 'zod';
 
-const base = `${import.meta.env.VITE_API_URL}/api/v1/candidates`;
+const base = `/api/v1/candidates`;
 
 export async function apiListCandidates(params: Partial<z.infer<typeof CandidateQuerySchema>> = {}) {
   const query = CandidateQuerySchema.parse({

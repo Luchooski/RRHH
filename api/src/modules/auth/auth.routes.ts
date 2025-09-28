@@ -2,6 +2,9 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { loginHandler, meHandler, logoutHandler } from './auth.controller.js';
 
+import { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { env, isProd } from '../../config/env.js';
+
 export default async function authRoutes(app: FastifyInstance) {
   app.post('/auth/login', {
     schema: {
@@ -27,8 +30,23 @@ export default async function authRoutes(app: FastifyInstance) {
     handler: meHandler,
   });
 
-  app.post('/auth/logout', {
-  schema: { response: { 200: z.object({ ok: z.boolean() }) } },
-  handler: logoutHandler,
-});
+app.withTypeProvider<ZodTypeProvider>().route({
+    method: 'POST',
+    url: '/api/v1/auth/logout',
+    schema: { response: { 200: z.object({ ok: z.boolean() }) } },
+    // no necesitamos authGuard estricto: siempre respondemos 200 y limpiamos cookie si existe
+    handler: async (req, reply) => {
+      // Si usás cookie httpOnly
+      if (env.AUTH_COOKIE) {
+        reply.clearCookie('token', {
+          path: '/',
+          httpOnly: true,
+          secure: isProd,
+          sameSite: 'lax',
+        });
+      }
+      // Para Bearer no hay estado que invalidar en server; el cliente borra el token.
+      return { ok: true };
+    },
+      });
 }

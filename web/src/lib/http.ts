@@ -16,72 +16,66 @@ export function setToken(t: string | null) {
   }
 }
 
-export function setOnUnauthorized(fn: (() => void) | null) {
-  __onUnauthorized = fn;
+export function onUnauthorized(cb: (() => void) | null) {
+  __onUnauthorized = cb;
 }
 
 function buildUrl(path: string) {
-  const p = path.startsWith('/') ? path : '/' + path;
-  return API_BASE + p;
+  if (/^https?:\/\//i.test(path)) return path; // ya es absoluta
+  const left = API_BASE;
+  const right = path.startsWith('/') ? path : `/${path}`;
+  return `${left}${right}`;
 }
 
-async function request<T>(path: string, opts: HttpOptions = {}): Promise<T> {
-  const headers = new Headers(opts.headers || {});
-  if (!headers.has('Accept')) headers.set('Accept', 'application/json');
+async function request<T>(path: string, opts: HttpOptions): Promise<T> {
+  const url = buildUrl(path);
+  const headers: Record<string, string> = {
+    ...(opts.headers as any),
+  };
 
-  const hasBodyMethod =
-    (opts.method && !['GET', 'HEAD'].includes(opts.method)) || opts.body != null;
-  if (!headers.has('Content-Type') && hasBodyMethod) {
-    headers.set('Content-Type', 'application/json');
+  // Solo fijar Content-Type JSON si realmente enviamos body
+  const hasBody = opts.body != null;
+  if (hasBody && !('Content-Type' in headers)) {
+    headers['Content-Type'] = 'application/json';
   }
 
-  const useAuth = opts.auth !== false;
-  if (useAuth && __token && !headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${__token}`);
+  if (opts.auth && __token) {
+    headers.Authorization = `Bearer ${__token}`;
   }
 
-  const res = await fetch(buildUrl(path), {
-    ...opts,
-    headers,
-    credentials: 'include',
-    cache: 'no-store',
-  }).catch((err) => {
-    throw new Error(`NETWORK_ERROR: ${err?.message || String(err)}`);
-  });
+  const res = await fetch(url, { ...opts, headers });
 
-  if (res.status === 401) {
-    __onUnauthorized?.();
-    throw new Error('UNAUTHORIZED');
+  if (res.status === 401 && __onUnauthorized) {
+    try { __onUnauthorized(); } catch {}
   }
 
   const text = await res.text();
-  const json = text ? (() => { try { return JSON.parse(text); } catch { return null; } })() : null;
+  const data = text ? JSON.parse(text) : null;
 
   if (!res.ok) {
-    const msg = (json && (json.error?.message || json.message)) || `HTTP_${res.status}`;
-    const code = (json && (json.error?.code || json.code)) || 'HTTP_ERROR';
-    const error = new Error(`${code}: ${msg}`);
-    (error as any).status = res.status;
-    (error as any).body = json ?? text;
-    throw error;
+    const message = (data && (data.error?.message || data.message)) || `HTTP ${res.status}`;
+    const err = new Error(message) as any;
+    err.status = res.status;
+    err.details = data?.error?.details ?? data;
+    throw err;
   }
 
-  return (json ?? (undefined as any)) as T;
+  return data as T;
 }
 
-async function requestBlob(path: string, opts: HttpOptions = {}): Promise<Blob> {
-  const headers = new Headers(opts.headers || {});
-  const useAuth = opts.auth !== false;
-  if (useAuth && __token && !headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${__token}`);
+async function requestBlob(path: string, opts: HttpOptions): Promise<Blob> {
+  const url = buildUrl(path);
+  const headers: Record<string, string> = {
+    ...(opts.headers as any),
+  };
+  if (opts.auth && __token) {
+    headers.Authorization = `Bearer ${__token}`;
   }
-  const res = await fetch(buildUrl(path), {
-    ...opts,
-    headers,
-    credentials: 'include',
-    cache: 'no-store',
-  });
-  if (!res.ok) throw new Error(`HTTP_${res.status}`);
+  const res = await fetch(url, { ...opts, headers });
+  if (res.status === 401 && __onUnauthorized) {
+    try { __onUnauthorized(); } catch {}
+  }
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.blob();
 }
 
@@ -98,5 +92,7 @@ export const http = {
   blob:  (path: string, opts?: HttpOptions) => requestBlob(path, { ...opts, method: 'GET' }),
 };
 
-// ← Export de compatibilidad para imports existentes:
-export const apiUrl = API_BASE;
+// Compat (por si alguien lo usa)
+export function apiUrl(path: string = '') {
+  return buildUrl(path || '/');
+}

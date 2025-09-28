@@ -29,6 +29,13 @@ export type CandidateUpdateInput = z.infer<typeof CandidateUpdateSchema>;
 export const CandidateQuerySchema = z.object({
   q: z.string().optional(),
   status: z.string().optional(),
+  role: z.string().optional(),
+  matchMin: z.number().int().min(0).max(100).optional(),
+  matchMax: z.number().int().min(0).max(100).optional(),
+  createdFrom: z.string().optional(), // YYYY-MM-DD
+  createdTo: z.string().optional(),
+  sortField: z.enum(['createdAt','match','name','role','status']).default('createdAt'),
+  sortDir: z.enum(['asc','desc']).default('desc'),
   limit: z.number().int().min(1).max(100).default(20),
   skip: z.number().int().min(0).default(0),
 });
