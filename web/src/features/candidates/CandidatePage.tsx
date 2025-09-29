@@ -1,88 +1,69 @@
 import { useState } from 'react';
 import CandidateForm from '../../components/CandidateForm';
 import CandidateTable from '../../components/CandidateTable';
-import { useDeleteCandidate, useListCandidates } from '../../features/candidates/hooks';
+import CandidateAdvancedSearch from './CandidateAdvancedSearch';
+import { useDeleteCandidate, useListCandidates } from './hooks';
+import type { Candidate, CandidateQuery } from './dto';
+import { toCsv, downloadCsv } from './csv';
 
 export default function CandidatesPage() {
-  const [q, setQ] = useState('');
-  const [status, setStatus] = useState<string | undefined>(undefined);
-  const [limit, setLimit] = useState(20);
-  const [skip, setSkip] = useState(0);
+  const [query, setQuery] = useState<Partial<CandidateQuery>>({
+    limit: 20, skip: 0, sortField: 'createdAt', sortDir: 'desc'
+  });
 
-  const { data, isLoading, isFetching } = useListCandidates({ q, status, limit, skip });
+  const { data, isLoading, isFetching } = useListCandidates(query);
   const delMut = useDeleteCandidate();
-
-  const onCreated = () => {
-    // React Query invalidará desde el hook; mantenemos UX
-  };
 
   const onDelete = async (id: string) => {
     if (!confirm('¿Eliminar candidato?')) return;
     await delMut.mutateAsync(id);
   };
 
+  const next = () => setQuery(q => ({ ...q, skip: (q.skip ?? 0) + (q.limit ?? 20) }));
+  const prev = () => setQuery(q => ({ ...q, skip: Math.max(0, (q.skip ?? 0) - (q.limit ?? 20)) }));
+
+  const exportCsv = () => {
+    const items = (data ?? []) as Candidate[];
+    if (!items.length) return;
+    const rows = items.map(i => ({
+      id: i.id,
+      nombre: i.name,
+      email: i.email,
+      rol: i.role,
+      match: i.match ?? 0,
+      estado: i.status,
+      creado: i.createdAt,
+      actualizado: i.updatedAt,
+    }));
+    const csv = toCsv(rows);
+    downloadCsv('candidatos.csv', csv);
+  };
+
   return (
     <div className="p-4 space-y-4">
       <header className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">Candidatos</h1>
-        <div className="text-sm text-gray-500">{isFetching ? 'Actualizando…' : null}</div>
+        <div className="flex items-center gap-2">
+          <button onClick={exportCsv} className="border rounded-lg px-3 py-1.5 hover:bg-gray-50">
+            Exportar CSV
+          </button>
+          <div className="text-sm text-gray-500">{isFetching ? 'Actualizando…' : null}</div>
+        </div>
       </header>
 
+      <CandidateAdvancedSearch initial={query} onChange={setQuery} />
+
       <section className="grid gap-3 md:grid-cols-3">
-        <div className="col-span-2 border rounded-xl p-3 space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              value={q}
-              onChange={(e) => { setQ(e.target.value); setSkip(0); }}
-              placeholder="Buscar por nombre, email o rol…"
-              className="border rounded px-3 py-2 w-64"
-              aria-label="Buscar"
-            />
-            <select
-              value={status ?? ''}
-              onChange={(e) => { setStatus(e.target.value || undefined); setSkip(0); }}
-              className="border rounded px-3 py-2"
-              aria-label="Estado"
-            >
-              <option value="">Todos</option>
-              <option value="Activo">Activo</option>
-              <option value="Entrevista">Entrevista</option>
-              <option value="Offer">Offer</option>
-              <option value="Hired">Hired</option>
-              <option value="Rejected">Rejected</option>
-            </select>
-            <select
-              value={limit}
-              onChange={(e) => { setLimit(Number(e.target.value)); setSkip(0); }}
-              className="border rounded px-3 py-2"
-              aria-label="Items por página"
-            >
-              {[10,20,50,100].map(n => <option key={n} value={n}>{n}/pág</option>)}
-            </select>
-          </div>
-
+        <div className="col-span-2 border rounded-xl p-3 space-y-3 bg-white">
           <CandidateTable data={data ?? []} loading={isLoading} onDelete={onDelete} />
-
           <div className="flex items-center justify-end gap-2">
-            <button
-              className="border rounded px-3 py-1 disabled:opacity-50"
-              onClick={() => setSkip(Math.max(0, skip - limit))}
-              disabled={skip === 0}
-            >
-              Anterior
-            </button>
-            <button
-              className="border rounded px-3 py-1"
-              onClick={() => setSkip(skip + limit)}
-            >
-              Siguiente
-            </button>
+            <button onClick={prev} className="border rounded px-3 py-1 disabled:opacity-50" disabled={(query.skip ?? 0) === 0}>Anterior</button>
+            <button onClick={next} className="border rounded px-3 py-1">Siguiente</button>
           </div>
         </div>
-
-        <div className="border rounded-xl p-3">
+        <div className="border rounded-xl p-3 bg-white">
           <h2 className="font-medium mb-2">Alta rápida</h2>
-          <CandidateForm onCreated={onCreated} />
+          <CandidateForm onCreated={() => setQuery(q => ({ ...q }))} />
         </div>
       </section>
     </div>
