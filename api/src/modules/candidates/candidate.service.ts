@@ -1,52 +1,72 @@
-import { CandidateModel } from './candidate.model.js';
-import type { CandidateCreateInput, CandidateQuery, CandidateUpdateInput } from './candidate.dto.js';
+import { CandidateModel, type CandidateDoc } from './candidate.model.js';
 
-export async function listCandidates(qs: CandidateQuery) {
-  const filter: any = {};
-  if (qs.q) {
-    filter.$or = [
-      { fullName: { $regex: qs.q, $options: 'i' } },
-      { email: { $regex: qs.q, $options: 'i' } },
-      { skills: { $elemMatch: { $regex: qs.q, $options: 'i' } } },
-    ];
-  }
-  if (qs.skills) {
-    const wanted = qs.skills.split(',').map(s => s.trim()).filter(Boolean);
-    filter.skills = { $all: wanted };
-  }
-  if (qs.status) {
-    const statuses = qs.status.split(',').map(s => s.trim()).filter(Boolean);
-    filter.status = { $in: statuses };
-  }
+export type ListParams = {
+  q?: string;
+  sortField?: string;
+  sortDir?: 'asc' | 'desc';
+  limit?: number;
+  skip?: number;
+};
 
-  const sort: any = {};
-  const s = qs.sort.startsWith('-') ? qs.sort.slice(1) : qs.sort;
-  sort[s] = qs.sort.startsWith('-') ? -1 : 1;
+function toSort(sortField = 'createdAt', sortDir: 'asc' | 'desc' = 'desc') {
+  return { [sortField]: sortDir === 'desc' ? -1 : 1 } as Record<string, 1 | -1>;
+}
 
+function mapDoc(doc: CandidateDoc) {
+  return {
+    id: String(doc._id),
+    name: doc.name,
+    email: doc.email ?? undefined,
+    role: doc.role,
+    match: doc.match ?? 0,
+    status: doc.status ?? 'new',
+    createdAt: doc.createdAt?.toISOString?.() ?? new Date().toISOString(),
+    updatedAt: doc.updatedAt?.toISOString?.() ?? new Date().toISOString(),
+  };
+}
+
+export async function listCandidates(params: ListParams) {
+  const { q, sortField, sortDir, limit = 20, skip = 0 } = params;
+  const filter = q
+    ? { $or: [
+        { name:   { $regex: q, $options: 'i' } },
+        { email:  { $regex: q, $options: 'i' } },
+        { role:   { $regex: q, $options: 'i' } },
+      ] }
+    : {};
   const [items, total] = await Promise.all([
-    CandidateModel.find(filter).sort(sort).skip(qs.skip).limit(qs.limit).lean(),
+    CandidateModel.find(filter).sort(toSort(sortField, sortDir)).skip(skip).limit(limit).lean(),
     CandidateModel.countDocuments(filter),
   ]);
-
-  return { items, total };
+  return {
+    items: items.map((d) => mapDoc(d as any)),
+    total,
+    limit,
+    skip,
+    sort: `${sortField ?? 'createdAt'}:${sortDir ?? 'desc'}`,
+  };
 }
 
-export async function getCandidate(id: string) {
-  const doc = await CandidateModel.findById(id).lean();
-  return doc;
+export async function getCandidateById(id: string) {
+  const d = await CandidateModel.findById(id).lean();
+  return d ? mapDoc(d as any) : null;
 }
 
-export async function createCandidate(input: CandidateCreateInput) {
-  const doc = await CandidateModel.create(input);
-  return doc.toObject();
+export async function createCandidate(input: {
+  name: string; email?: string; role: string; match?: number; status?: string;
+}) {
+  const created = await CandidateModel.create(input);
+  return mapDoc(created.toObject() as any);
 }
 
-export async function updateCandidate(id: string, input: CandidateUpdateInput) {
-  const doc = await CandidateModel.findByIdAndUpdate(id, input, { new: true, runValidators: true }).lean();
-  return doc;
+export async function updateCandidate(id: string, input: Partial<{
+  name: string; email?: string; role: string; match?: number; status?: string;
+}>) {
+  const updated = await CandidateModel.findByIdAndUpdate(id, input, { new: true }).lean();
+  return updated ? mapDoc(updated as any) : null;
 }
 
-export async function deleteCandidate(id: string) {
-  const res = await CandidateModel.findByIdAndDelete(id).lean();
-  return !!res;
+export async function removeCandidate(id: string) {
+  await CandidateModel.findByIdAndDelete(id);
+  return { ok: true };
 }

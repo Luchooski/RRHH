@@ -1,44 +1,68 @@
-import { FastifyInstance } from 'fastify';
-import { ZodTypeProvider } from 'fastify-type-provider-zod';
+import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import {
-  EmployeeInputSchema,
-  EmployeeOutputSchema,
-  EmployeesListSchema
-} from './employee.dto.js';
-import { createEmployee, listEmployees } from './employee.service.js';
-import { authGuard } from '../../middlewares/auth.js';
+  listEmployees, getEmployeeById, createEmployee, updateEmployee, removeEmployee
+} from './employee.service.js';
 
-export async function employeeRoutes(app: FastifyInstance) {
-  // Listado (requiere estar logueado)
-  app.withTypeProvider<ZodTypeProvider>().route({
-    method: 'GET',
-    url: '/api/v1/employees',
-    schema: {
-      querystring: z.object({
-        limit: z.coerce.number().int().min(1).max(100).default(50),
-        skip: z.coerce.number().int().min(0).default(0)
-      }),
-      response: { 200: EmployeesListSchema }
-    },
-    preHandler: authGuard(), // igual que otras áreas privadas
-    handler: async (req) => {
-      const { limit, skip } = req.query as { limit: number; skip: number };
-      return listEmployees(limit, skip);
-    }
+const Employee = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string().email(),
+  role: z.string(),
+  phone: z.string().optional(),
+  baseSalary: z.number().int().nonnegative(),
+  monthlyHours: z.number().int().positive(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+const CreateBody = Employee.omit({ id: true, createdAt: true, updatedAt: true });
+const UpdateBody = CreateBody.partial();
+
+const employeeRoutes: FastifyPluginAsync = async (app) => {
+  // ⚠️ Tu frontend de Empleados espera un ARRAY (no paginado)
+  app.get('/employees', {
+    schema: { response: { 200: z.array(Employee) } },
+    handler: async () => listEmployees(),
   });
 
-  // Alta (protegido)
-  app.withTypeProvider<ZodTypeProvider>().route({
-    method: 'POST',
-    url: '/api/v1/employees',
-    schema: { body: EmployeeInputSchema, response: { 201: EmployeeOutputSchema } },
-    preHandler: authGuard(),
+  app.get('/employees/:id', {
+    schema: { response: { 200: Employee } },
     handler: async (req, reply) => {
-      const body = req.body as z.infer<typeof EmployeeInputSchema>;
-      const out = await createEmployee(body);
-      reply.code(201);
-      return out;
-    }
+      const { id } = req.params as { id: string };
+      const found = await getEmployeeById(id);
+      if (!found) return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Employee not found' } });
+      return found;
+    },
   });
-}
+
+  app.post('/employees', {
+    schema: { body: CreateBody, response: { 201: Employee } },
+    handler: async (req, reply) => {
+      const created = await createEmployee(req.body as any);
+      reply.code(201);
+      return created;
+    },
+  });
+
+  app.patch('/employees/:id', {
+    schema: { body: UpdateBody, response: { 200: Employee } },
+    handler: async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const updated = await updateEmployee(id, req.body as any);
+      if (!updated) return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Employee not found' } });
+      return updated;
+    },
+  });
+
+  app.delete('/employees/:id', {
+    schema: { response: { 200: z.object({ ok: z.boolean() }) } },
+    handler: async (req) => {
+      const { id } = req.params as { id: string };
+      return removeEmployee(id);
+    },
+  });
+};
+
+export { employeeRoutes };
+export default employeeRoutes;

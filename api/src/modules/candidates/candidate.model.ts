@@ -1,18 +1,20 @@
-import { Schema, model } from 'mongoose';
+import { Schema, model, type InferSchemaType } from 'mongoose';
 
 const CandidateSchema = new Schema(
   {
-    fullName: { type: String, required: true, index: 'text' },
-    email: { type: String, required: true, unique: true, index: true },
-    phone: { type: String, default: null },
-    skills: { type: [String], default: [], index: true },
-    status: { type: String, enum: ['applied','screening','interview','offer','hired','rejected'], default: 'applied', index: true },
-    source: { type: String, enum: ['cv','form','import','manual'], default: 'manual' },
+    name: { type: String, required: true, index: true },
+    email: { type: String, required: false, index: true },
+    role: { type: String, required: true, index: true },
+    match: { type: Number, default: 0, min: 0, max: 100 },
+    status: { type: String, default: 'new', index: true },
+        source: { type: String, enum: ['cv','form','import','manual'], default: 'manual' },
     notes: { type: String, default: null },
   },
   { timestamps: true }
 );
 
-CandidateSchema.index({ fullName: 'text', email: 'text' });
+// Búsqueda simple por texto
+CandidateSchema.index({ name: 'text', email: 'text', role: 'text' });
 
-export const CandidateModel = model('Candidate', CandidateSchema);
+export type CandidateDoc = InferSchemaType<typeof CandidateSchema> & { _id: any };
+export const CandidateModel = model('Candidate', CandidateSchema, 'candidates');

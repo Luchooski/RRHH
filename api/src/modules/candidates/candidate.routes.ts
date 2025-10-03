@@ -1,85 +1,88 @@
-// api/src/modules/candidates/candidate.routes.ts
-import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyPluginAsync } from 'fastify';
+import { z } from 'zod';
 import {
-  getCandidates,
-  getCandidateById,
-  postCandidate,
-  patchCandidate,
-  removeCandidate,
-} from './candidate.controller.js';
-import { seedCandidates } from './seed.js';
+  listCandidates, getCandidateById, createCandidate, updateCandidate, removeCandidate,
+} from './candidate.service.js';
 
-function buildCompatReqRes(request: FastifyRequest, reply: FastifyReply) {
-  // Normalizamos query para compatibilidad con controllers "Express-like"
-  const q: Record<string, any> = { ...(request.query as any) };
+const Candidate = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string().email().optional(),
+  role: z.string(),
+  match: z.number().int().min(0).max(100),
+  status: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
 
-  // Compat: si llegan sortField/sortDir, armamos "sort" = "field:dir"
-  const sortField = typeof q.sortField === 'string' ? q.sortField : undefined;
-  const sortDir = q.sortDir === 'desc' || q.sortDir === 'asc' ? q.sortDir : undefined;
-  if (!q.sort && sortField) {
-    q.sort = `${sortField}:${sortDir ?? 'asc'}`; // ej: "createdAt:desc"
-  }
+const ListQuery = z.object({
+  q: z.string().optional(),
+  sortField: z.string().optional().default('createdAt'),
+  sortDir: z.enum(['asc', 'desc']).optional().default('desc'),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  skip: z.coerce.number().int().min(0).default(0),
+});
 
-  // Compat: aseguramos limit/skip como *string*, como haría Express (por si el controller hace parseInt)
-  if (typeof q.limit !== 'string' && typeof q.limit !== 'undefined') q.limit = String(q.limit);
-  if (typeof q.skip !== 'string' && typeof q.skip !== 'undefined') q.skip = String(q.skip);
+const ListOut = z.object({
+  items: z.array(Candidate),
+  total: z.number().int().nonnegative(),
+  limit: z.number().int().positive(),
+  skip: z.number().int().min(0),
+  sort: z.string().optional(),
+});
 
-  const reqLike = {
-    method: request.method,
-    url: request.url,
-    originalUrl: request.url,
-    headers: request.headers as any,
-    params: request.params as any,
-    query: q,
-    body: request.body as any,
-  };
+const CreateBody = z.object({
+  name: z.string().min(2),
+  email: z.string().email().optional(),
+  role: z.string().min(2),
+  match: z.number().int().min(0).max(100).optional(),
+  status: z.string().optional(),
+});
 
-  const resLike = {
-    status(code: number) {
-      reply.status(code);
-      return resLike;
-    },
-    json(payload: any) {
-      reply.send(payload);
-      return resLike;
-    },
-    send(payload: any) {
-      reply.send(payload);
-      return resLike;
-    },
-    setHeader(name: string, value: any) {
-      reply.header(name, value);
-      return resLike;
-    },
-  };
-
-  return { reqLike, resLike };
-}
+const UpdateBody = CreateBody.partial();
 
 const candidateRoutes: FastifyPluginAsync = async (app) => {
-  const wrap = (handler: (req: any, res: any) => any | Promise<any>) =>
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      const { reqLike, resLike } = buildCompatReqRes(request, reply);
-      try {
-        const result = await handler(reqLike, resLike);
-        if (!reply.sent && typeof result !== 'undefined') reply.send(result);
-      } catch (err: any) {
-        app.log.error({ err }, 'candidates handler error');
-        if (!reply.sent) {
-          reply.status(500).send({
-            error: { code: 'INTERNAL_ERROR', message: err?.message ?? 'Unexpected error' },
-          });
-        }
-      }
-    };
+  app.get('/candidates', {
+    schema: { querystring: ListQuery, response: { 200: ListOut } },
+    handler: async (req) => listCandidates(req.query as any),
+  });
 
-  // ¡Rutas RELATIVAS! El /api/v1 lo aporta app.register(..., { prefix:'/api/v1' })
-  app.get('/candidates', wrap(getCandidates));
-  app.get('/candidates/:id', wrap(getCandidateById));
-  app.post('/candidates', wrap(postCandidate));
-  app.patch('/candidates/:id', wrap(patchCandidate));
-  app.delete('/candidates/:id', wrap(removeCandidate));
-  app.post('/candidates/seed', wrap(seedCandidates)); // dev only
+  app.get('/candidates/:id', {
+    schema: { response: { 200: Candidate } },
+    handler: async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const found = await getCandidateById(id);
+      if (!found) return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Candidate not found' } });
+      return found;
+    },
+  });
+
+  app.post('/candidates', {
+    schema: { body: CreateBody, response: { 201: Candidate } },
+    handler: async (req, reply) => {
+      const created = await createCandidate(req.body as any);
+      reply.code(201);
+      return created;
+    },
+  });
+
+  app.patch('/candidates/:id', {
+    schema: { body: UpdateBody, response: { 200: Candidate } },
+    handler: async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const updated = await updateCandidate(id, req.body as any);
+      if (!updated) return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Candidate not found' } });
+      return updated;
+    },
+  });
+
+  app.delete('/candidates/:id', {
+    schema: { response: { 200: z.object({ ok: z.boolean() }) } },
+    handler: async (req) => {
+      const { id } = req.params as { id: string };
+      return removeCandidate(id);
+    },
+  });
 };
 
 export default candidateRoutes;
