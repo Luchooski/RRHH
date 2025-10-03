@@ -1,14 +1,17 @@
 import { useState } from 'react';
-import CandidateForm from '../../components/CandidateForm';
-import CandidateTable from '../../components/CandidateTable';
+import CandidateForm from './CandidateForm';
+import CandidateTable from '@/components/CandidateTable';
 import CandidateAdvancedSearch from './CandidateAdvancedSearch';
 import { useDeleteCandidate, useListCandidates } from './hooks';
 import type { Candidate, CandidateQuery } from './dto';
 import { toCsv, downloadCsv } from './csv';
+import { Toolbar } from '@/components/ui/Toolbar';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 
 export default function CandidatesPage() {
   const [query, setQuery] = useState<Partial<CandidateQuery>>({
-    limit: 20, skip: 0, sortField: 'createdAt', sortDir: 'desc'
+    limit: 20, skip: 0, sortField: 'createdAt', sortDir: 'desc',
   });
 
   const { data, isLoading, isFetching } = useListCandidates(query);
@@ -26,46 +29,41 @@ export default function CandidatesPage() {
     const items = (data ?? []) as Candidate[];
     if (!items.length) return;
     const rows = items.map(i => ({
-      id: i.id,
-      nombre: i.name,
-      email: i.email,
-      rol: i.role,
-      match: i.match ?? 0,
-      estado: i.status,
-      creado: i.createdAt,
-      actualizado: i.updatedAt,
+      id: i.id, nombre: i.name, email: i.email, rol: i.role,
+      match: i.match ?? 0, estado: i.status, creado: i.createdAt, actualizado: i.updatedAt,
     }));
-    const csv = toCsv(rows);
-    downloadCsv('candidatos.csv', csv);
+    downloadCsv('candidatos.csv', toCsv(rows));
   };
 
   return (
     <div className="p-4 space-y-4">
-      <header className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">Candidatos</h1>
-        <div className="flex items-center gap-2">
-          <button onClick={exportCsv} className="border rounded-lg px-3 py-1.5 hover:bg-gray-50">
-            Exportar CSV
-          </button>
-          <div className="text-sm text-gray-500">{isFetching ? 'Actualizando…' : null}</div>
-        </div>
-      </header>
+      <Toolbar
+        title="Candidatos"
+        right={
+          <>
+            <Button onClick={exportCsv}>Exportar CSV</Button>
+            <span className="text-sm text-gray-500">{isFetching ? 'Actualizando…' : null}</span>
+          </>
+        }
+      />
 
-      <CandidateAdvancedSearch initial={query} onChange={setQuery} />
+      <Card>
+        <CandidateAdvancedSearch initial={query} onChange={setQuery} />
+      </Card>
 
-      <section className="grid gap-3 md:grid-cols-3">
-        <div className="col-span-2 border rounded-xl p-3 space-y-3 bg-white">
+      <div className="grid gap-3 md:grid-cols-3">
+        <Card className="col-span-2" bodyClassName="space-y-3">
           <CandidateTable data={data ?? []} loading={isLoading} onDelete={onDelete} />
           <div className="flex items-center justify-end gap-2">
-            <button onClick={prev} className="border rounded px-3 py-1 disabled:opacity-50" disabled={(query.skip ?? 0) === 0}>Anterior</button>
-            <button onClick={next} className="border rounded px-3 py-1">Siguiente</button>
+            <Button onClick={prev} variant="secondary" disabled={(query.skip ?? 0) === 0}>Anterior</Button>
+            <Button onClick={next} variant="secondary">Siguiente</Button>
           </div>
-        </div>
-        <div className="border rounded-xl p-3 bg-white">
-          <h2 className="font-medium mb-2">Alta rápida</h2>
+        </Card>
+
+        <Card title="Alta rápida">
           <CandidateForm onCreated={() => setQuery(q => ({ ...q }))} />
-        </div>
-      </section>
+        </Card>
+      </div>
     </div>
   );
 }

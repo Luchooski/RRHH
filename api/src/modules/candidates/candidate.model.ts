@@ -2,17 +2,17 @@ import { Schema, model } from 'mongoose';
 
 const CandidateSchema = new Schema(
   {
-    name: { type: String, required: true, index: true },
-    email: { type: String, required: true, unique: true },
-    role: { type: String, required: true, index: true },
-    match: { type: Number, min: 0, max: 100, default: 0, index: true },
-    status: { type: String, default: 'Activo', index: true }
+    fullName: { type: String, required: true, index: 'text' },
+    email: { type: String, required: true, unique: true, index: true },
+    phone: { type: String, default: null },
+    skills: { type: [String], default: [], index: true },
+    status: { type: String, enum: ['applied','screening','interview','offer','hired','rejected'], default: 'applied', index: true },
+    source: { type: String, enum: ['cv','form','import','manual'], default: 'manual' },
+    notes: { type: String, default: null },
   },
   { timestamps: true }
 );
 
-CandidateSchema.index({ name: 'text', role: 'text' });
-CandidateSchema.index({ status: 1, createdAt: -1 });  // ya existía en tu base; si no, agregar
+CandidateSchema.index({ fullName: 'text', email: 'text' });
 
-export const Candidate = model('Candidate', CandidateSchema);
-export type CandidateDoc = typeof Candidate extends infer T ? T : never;
+export const CandidateModel = model('Candidate', CandidateSchema);

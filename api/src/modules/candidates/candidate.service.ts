@@ -1,108 +1,52 @@
-import { Candidate } from '../candidates/candidate.model.js';
-import type { FilterQuery, SortOrder } from 'mongoose';
+import { CandidateModel } from './candidate.model.js';
+import type { CandidateCreateInput, CandidateQuery, CandidateUpdateInput } from './candidate.dto.js';
 
-export async function listCandidates(params: {
-  limit: number; skip: number;
-  q?: string; status?: string; role?: string;
-  matchMin?: number; matchMax?: number;
-  createdFrom?: Date; createdTo?: Date;
-  sortField: 'createdAt'|'match'|'name'|'role'|'status';
-  sortDir: 'asc'|'desc';
-}) {
-  const { limit, skip, q, status, role, matchMin, matchMax, createdFrom, createdTo, sortField, sortDir } = params;
-
-  const filter: FilterQuery<typeof Candidate> = {};
-  if (status) filter.status = status;
-  if (role) filter.role = new RegExp(role, 'i');
-  if (typeof matchMin === 'number' || typeof matchMax === 'number') {
-    filter.match = {};
-    if (typeof matchMin === 'number') filter.match.$gte = matchMin;
-    if (typeof matchMax === 'number') filter.match.$lte = matchMax;
-  }
-  if (createdFrom || createdTo) {
-    filter.createdAt = {};
-    if (createdFrom) filter.createdAt.$gte = createdFrom;
-    if (createdTo)   filter.createdAt.$lte = createdTo;
-  }
-  if (q) {
+export async function listCandidates(qs: CandidateQuery) {
+  const filter: any = {};
+  if (qs.q) {
     filter.$or = [
-      { name: { $regex: q, $options: 'i' } },
-      { email: { $regex: q, $options: 'i' } },
-      { role: { $regex: q, $options: 'i' } },
-      { status: { $regex: q, $options: 'i' } },
+      { fullName: { $regex: qs.q, $options: 'i' } },
+      { email: { $regex: qs.q, $options: 'i' } },
+      { skills: { $elemMatch: { $regex: qs.q, $options: 'i' } } },
     ];
   }
+  if (qs.skills) {
+    const wanted = qs.skills.split(',').map(s => s.trim()).filter(Boolean);
+    filter.skills = { $all: wanted };
+  }
+  if (qs.status) {
+    const statuses = qs.status.split(',').map(s => s.trim()).filter(Boolean);
+    filter.status = { $in: statuses };
+  }
 
-  // Orden dinámico
-  const sort: Record<string, SortOrder> = { [sortField]: sortDir === 'asc' ? 1 : -1 };
+  const sort: any = {};
+  const s = qs.sort.startsWith('-') ? qs.sort.slice(1) : qs.sort;
+  sort[s] = qs.sort.startsWith('-') ? -1 : 1;
 
-  const docs = await Candidate.find(filter)
-    .sort(sort)
-    .skip(skip)
-    .limit(limit)
-    .lean();
+  const [items, total] = await Promise.all([
+    CandidateModel.find(filter).sort(sort).skip(qs.skip).limit(qs.limit).lean(),
+    CandidateModel.countDocuments(filter),
+  ]);
 
-  return docs.map(m => ({
-    id: String(m._id),
-    name: m.name,
-    email: m.email,
-    role: m.role,
-    match: m.match ?? 0,
-    status: m.status,
-    createdAt: (m.createdAt as Date).toISOString(),
-    updatedAt: (m.updatedAt as Date).toISOString()
-  }));
+  return { items, total };
 }
 
-export async function createCandidate(input: {
-  name: string; email: string; role: string; match?: number; status?: string;
-}) {
-  const doc = await Candidate.create(input);
-  return {
-    id: String(doc._id),
-    name: doc.name,
-    email: doc.email,
-    role: doc.role,
-    match: doc.match ?? 0,
-    status: doc.status,
-    createdAt: doc.createdAt.toISOString(),
-    updatedAt: doc.updatedAt.toISOString()
-  };
+export async function getCandidate(id: string) {
+  const doc = await CandidateModel.findById(id).lean();
+  return doc;
 }
 
-export async function getCandidateById(id: string) {
-  const m = await Candidate.findById(id).lean();
-  if (!m) return null;
-  return {
-    id: String(m._id),
-    name: m.name,
-    email: m.email,
-    role: m.role,
-    match: m.match ?? 0,
-    status: m.status,
-    createdAt: (m.createdAt as Date).toISOString(),
-    updatedAt: (m.updatedAt as Date).toISOString()
-  };
+export async function createCandidate(input: CandidateCreateInput) {
+  const doc = await CandidateModel.create(input);
+  return doc.toObject();
 }
 
-export async function updateCandidate(id: string, input: Partial<{
-  name: string; email: string; role: string; match?: number; status?: string;
-}>) {
-  const doc = await Candidate.findByIdAndUpdate(id, input, { new: true, runValidators: true });
-  if (!doc) return null;
-  return {
-    id: String(doc._id),
-    name: doc.name,
-    email: doc.email,
-    role: doc.role,
-    match: doc.match ?? 0,
-    status: doc.status,
-    createdAt: doc.createdAt.toISOString(),
-    updatedAt: doc.updatedAt.toISOString()
-  };
+export async function updateCandidate(id: string, input: CandidateUpdateInput) {
+  const doc = await CandidateModel.findByIdAndUpdate(id, input, { new: true, runValidators: true }).lean();
+  return doc;
 }
 
 export async function deleteCandidate(id: string) {
-  const res = await Candidate.findByIdAndDelete(id);
+  const res = await CandidateModel.findByIdAndDelete(id).lean();
   return !!res;
 }

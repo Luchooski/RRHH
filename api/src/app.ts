@@ -16,7 +16,7 @@ import { employeeRoutes } from './modules/employee/employee.routes.js';
 import { authGuard } from './middlewares/auth.js';
 import { ensureSeedAdmin } from './modules/auth/auth.service.js';
 
-import { candidateRoutes } from './modules/candidates/candidate.routes.js';
+import candidateRoutes from './modules/candidates/candidate.routes.js';
 
 
 export function buildApp() {
@@ -58,11 +58,12 @@ export function buildApp() {
   }
 
   // Rutas
-  app.register(healthRoutes);
-  app.register(authRoutes, { prefix: '/api/v1' });
-  app.register(payrollRoutes);
-  app.register(employeeRoutes);
-  app.register(candidateRoutes);
+  // Todas las rutas bajo /api/v1 para consistencia
+  app.register(healthRoutes,   { prefix: '/api/v1' });
+  app.register(authRoutes,     { prefix: '/api/v1' });
+  app.register(payrollRoutes,  { prefix: '/api/v1' });
+  app.register(employeeRoutes, { prefix: '/api/v1' });
+  app.register(candidateRoutes, { prefix: '/api/v1' });
 
   // Proteger árboles
   app.addHook('preHandler', async (req, reply) => {

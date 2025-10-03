@@ -30,7 +30,7 @@ function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
       to={to}
       className={({ isActive }) =>
         [
-          'rounded-md px-3 py-2 hover:bg-[--gray-3] focus-visible:outline focus-visible:outline-2',
+          'rounded-md px-3 py-2 hover:bg-[--gray-3] focus-visible:outline-2',
           isActive ? 'bg-[--gray-3] font-medium' : 'text-[--gray-12]'
         ].join(' ')
       }

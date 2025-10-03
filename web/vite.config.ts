@@ -1,19 +1,25 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite'
+import path from 'node:path';
 
 export default defineConfig({
   plugins: [react(),tailwindcss()],
   envDir: __dirname,
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'src'),
+    },
+  },
   server: {
-    host: true,        // escucha en 0.0.0.0 (necesario en algunas setups de Windows/WSL)
+    host: true, 
     port: 5173,
   
-    strictPort: true,  // si 5173 está ocupado, falla en vez de cambiar de puerto (útil para depurar)
+    strictPort: true,  
     hmr: {
-      host: 'localhost', // fuerza el host que usa el cliente HMR
-      port: 5173,        // idem para el puerto del WebSocket
-      protocol: 'ws',    // si sirvieras por https, cambia a 'wss'
+      host: 'localhost',
+      port: 5173,       
+      protocol: 'ws',    
     },
   },
 });

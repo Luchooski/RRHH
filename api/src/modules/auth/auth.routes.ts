@@ -30,6 +30,7 @@ export default async function authRoutes(app: FastifyInstance) {
     handler: meHandler,
   });
 
+  // 👇 Logout relativo (sin /api/v1)
 app.withTypeProvider<ZodTypeProvider>().route({
     method: 'POST',
     url: '/api/v1/auth/logout',

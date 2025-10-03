@@ -1,4 +1,3 @@
-import React from 'react';
 type Props = { label?: string; className?: string; size?: number };
 export default function Spinner({ label='Cargando…', className='', size=18 }: Props) {
   const s = `${size}px`;

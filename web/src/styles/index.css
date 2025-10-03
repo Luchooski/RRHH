@@ -7,7 +7,6 @@
 
   --color-bg: hsl(210 20% 98%);
   --color-surface: hsl(0 0% 100%);
-  /* ↓ más claro (menos contraste = menos “marcado”) */
   --color-border: hsl(220 14% 92%);
   --color-fg: hsl(220 18% 20%);
   --color-muted: hsl(220 10% 45%);

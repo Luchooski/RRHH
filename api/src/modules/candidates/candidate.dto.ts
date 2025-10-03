@@ -1,41 +1,41 @@
 import { z } from 'zod';
 
-export const CandidateInputSchema = z.object({
-  name: z.string().min(2),
+export const Status = z.enum(['applied','screening','interview','offer','hired','rejected']);
+export const Source = z.enum(['cv','form','import','manual']);
+
+export const CandidateCreateInput = z.object({
+  fullName: z.string().min(2),
   email: z.string().email(),
-  role: z.string().min(2),
-  match: z.number().int().min(0).max(100).optional(),
-  status: z.string().default('Activo').optional()
+  phone: z.string().min(6).optional().nullable(),
+  skills: z.array(z.string().min(1)).default([]),
+  status: Status.default('applied'),
+  source: Source.default('manual'),
+  notes: z.string().max(2000).optional().nullable(),
 });
 
-export const CandidateIdSchema = z.object({ id: z.string().length(24) });
+export const CandidateUpdateInput = CandidateCreateInput.partial();
 
-export const CandidateOutputSchema = z.object({
+export const CandidateOutput = z.object({
   id: z.string(),
-  name: z.string(),
-  email: z.string().email(),
-  role: z.string(),
-  match: z.number().int(),
-  status: z.string(),
+  fullName: z.string(),
+  email: z.string(),
+  phone: z.string().nullable(),
+  skills: z.array(z.string()),
+  status: Status,
+  source: Source,
   createdAt: z.string(),
-  updatedAt: z.string()
+  updatedAt: z.string(),
 });
 
-export const CandidatesListSchema = z.array(CandidateOutputSchema);
-
-export const CandidateUpdateSchema = CandidateInputSchema.partial();
-
-/** Búsqueda avanzada + paginación + orden */
-export const CandidateQuerySchema = z.object({
-  q: z.string().trim().optional(),
-  status: z.string().trim().optional(),
-  role: z.string().trim().optional(),
-  matchMin: z.coerce.number().int().min(0).max(100).optional(),
-  matchMax: z.coerce.number().int().min(0).max(100).optional(),
-  createdFrom: z.coerce.date().optional(),   // ISO string o YYYY-MM-DD
-  createdTo: z.coerce.date().optional(),
-  sortField: z.enum(['createdAt','match','name','role','status']).default('createdAt'),
-  sortDir: z.enum(['asc','desc']).default('desc'),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  skip: z.coerce.number().int().min(0).default(0),
+export const CandidateQuery = z.object({
+  q: z.string().optional(),
+  skills: z.string().optional(),   // "react,node"
+  status: z.string().optional(),   // "applied,interview"
+  sort: z.string().optional().default('-createdAt'), // "-createdAt" | "fullName" ...
+  limit: z.coerce.number().min(1).max(100).default(20),
+  skip: z.coerce.number().min(0).default(0),
 });
+export type CandidateCreateInput = z.infer<typeof CandidateCreateInput>;
+export type CandidateUpdateInput = z.infer<typeof CandidateUpdateInput>;
+export type CandidateOutput = z.infer<typeof CandidateOutput>;
+export type CandidateQuery = z.infer<typeof CandidateQuery>;
