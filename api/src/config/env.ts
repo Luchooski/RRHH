@@ -21,6 +21,8 @@ export const env = {
 
   RATE_LIMIT_MAX: Number(process.env.RATE_LIMIT_MAX ?? 300),
 
+  PAYROLLS_COLL: required('PAYROLLS_COLL', 'payrolls'),
+
   JWT_SECRET: required('JWT_SECRET', 'CHANGE_ME_IN_PROD'),
 
   AUTH_HEADER: (process.env.AUTH_HEADER ?? 'true').toString(),

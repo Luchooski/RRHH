@@ -1,24 +1,23 @@
-import { z } from 'zod';
-import { http } from '../../lib/http';
+import { http } from '@/lib/http';
+import type { Employee, EmployeeCreateInput, EmployeeListOut } from './dto';
 
-export const EmployeeSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  role: z.string(),
-  email: z.string().email(),
-  phone: z.string().optional(),
-  baseSalary: z.number().nonnegative(),
-  monthlyHours: z.number().int().positive()
-});
-export const EmployeesSchema = z.array(EmployeeSchema);
-export type Employee = z.infer<typeof EmployeeSchema>;
-
-export async function fetchEmployees(): Promise<Employee[]> {
-  const data = await http.get<unknown>('/api/v1/employees', { auth: true });
-  return EmployeesSchema.parse(data);
+export async function apiListEmployees(params?: { limit?: number; skip?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.limit) qs.set('limit', String(params.limit));
+  if (params?.skip) qs.set('skip', String(params.skip));
+  const q = qs.toString() ? `?${qs.toString()}` : '';
+  // Respuesta esperada: { items: Employee[], total: number } o array simple
+  const raw = await http.get<any>(`/api/v1/employees${q}`, { auth: true });
+  if (Array.isArray(raw)) {
+    return { items: raw, total: raw.length } as EmployeeListOut;
+  }
+  return (raw ?? { items: [], total: 0 }) as EmployeeListOut;
 }
 
-export async function createEmployee(payload: Omit<Employee, 'id'>) {
-  const data = await http.post<unknown>('/api/v1/employees', payload, { auth: true });
-  return EmployeeSchema.parse(data);
+export async function apiCreateEmployee(input: EmployeeCreateInput) {
+  return http.post<Employee>('/api/v1/employees', input, { auth: true });
+}
+
+export async function apiDeleteEmployee(id: string) {
+  return http.delete<{ ok: boolean }>(`/api/v1/employees/${encodeURIComponent(id)}`, { auth: true });
 }

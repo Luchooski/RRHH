@@ -1,88 +1,126 @@
+// api/src/modules/candidates/candidate.routes.ts
 import type { FastifyPluginAsync } from 'fastify';
+import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import {
-  listCandidates, getCandidateById, createCandidate, updateCandidate, removeCandidate,
-} from './candidate.service.js';
+import { Types } from 'mongoose';
+import { Candidate } from './candidate.model.js'; // ajusta si tu path difiere
 
-const Candidate = z.object({
+const CandidateDTO = z.object({
   id: z.string(),
   name: z.string(),
-  email: z.string().email().optional(),
+  email: z.string().email(),
   role: z.string(),
-  match: z.number().int().min(0).max(100),
+  match: z.number(),
   status: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
 
-const ListQuery = z.object({
-  q: z.string().optional(),
-  sortField: z.string().optional().default('createdAt'),
-  sortDir: z.enum(['asc', 'desc']).optional().default('desc'),
-  limit: z.coerce.number().int().positive().max(100).default(20),
-  skip: z.coerce.number().int().min(0).default(0),
-});
-
 const ListOut = z.object({
-  items: z.array(Candidate),
+  items: z.array(CandidateDTO),
   total: z.number().int().nonnegative(),
-  limit: z.number().int().positive(),
-  skip: z.number().int().min(0),
-  sort: z.string().optional(),
 });
 
-const CreateBody = z.object({
-  name: z.string().min(2),
-  email: z.string().email().optional(),
-  role: z.string().min(2),
-  match: z.number().int().min(0).max(100).optional(),
-  status: z.string().optional(),
-});
-
-const UpdateBody = CreateBody.partial();
+function mapOut(doc: any) {
+  return {
+    id: String(doc.id ?? doc._id),
+    name: doc.name,
+    email: doc.email,
+    role: doc.role,
+    match: doc.match,
+    status: doc.status,
+    createdAt: typeof doc.createdAt === 'string' ? doc.createdAt : new Date(doc.createdAt).toISOString(),
+    updatedAt: typeof doc.updatedAt === 'string' ? doc.updatedAt : new Date(doc.updatedAt).toISOString(),
+  };
+}
 
 const candidateRoutes: FastifyPluginAsync = async (app) => {
-  app.get('/candidates', {
-    schema: { querystring: ListQuery, response: { 200: ListOut } },
-    handler: async (req) => listCandidates(req.query as any),
+  const r = app.withTypeProvider<ZodTypeProvider>();
+
+  // LIST
+  r.route({
+    method: 'GET',
+    url: '/candidates',
+    schema: { response: { 200: ListOut } },
+    handler: async () => {
+      const items = await Candidate.find().sort({ createdAt: -1 }).lean({ virtuals: true });
+      const total = await Candidate.countDocuments({});
+      return { items: items.map(mapOut), total };
+    },
   });
 
-  app.get('/candidates/:id', {
-    schema: { response: { 200: Candidate } },
+  // DETAIL
+  r.route({
+    method: 'GET',
+    url: '/candidates/:id',
+    schema: { response: { 200: CandidateDTO, 404: z.object({ error: z.string() }) } },
     handler: async (req, reply) => {
       const { id } = req.params as { id: string };
-      const found = await getCandidateById(id);
-      if (!found) return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Candidate not found' } });
-      return found;
+      if (!Types.ObjectId.isValid(id)) return reply.code(404).send({ error: 'Not found' });
+      const found = await Candidate.findById(id).lean({ virtuals: true });
+      if (!found) return reply.code(404).send({ error: 'Not found' });
+      return mapOut(found);
     },
   });
 
-  app.post('/candidates', {
-    schema: { body: CreateBody, response: { 201: Candidate } },
-    handler: async (req, reply) => {
-      const created = await createCandidate(req.body as any);
-      reply.code(201);
-      return created;
+  // CREATE
+  r.route({
+    method: 'POST',
+    url: '/candidates',
+    schema: {
+      body: z.object({
+        name: z.string().min(1),
+        email: z.string().email(),
+        role: z.string(),
+        match: z.number().min(0).max(100),
+        status: z.string().default('Nuevo'),
+      }),
+      response: { 200: CandidateDTO },
     },
-  });
-
-  app.patch('/candidates/:id', {
-    schema: { body: UpdateBody, response: { 200: Candidate } },
-    handler: async (req, reply) => {
-      const { id } = req.params as { id: string };
-      const updated = await updateCandidate(id, req.body as any);
-      if (!updated) return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Candidate not found' } });
-      return updated;
-    },
-  });
-
-  app.delete('/candidates/:id', {
-    schema: { response: { 200: z.object({ ok: z.boolean() }) } },
     handler: async (req) => {
+      const doc = await Candidate.create(req.body);
+      return mapOut(doc.toObject({ virtuals: true }));
+    },
+  });
+
+  // UPDATE (PATCH)
+  r.route({
+    method: 'PATCH',
+    url: '/candidates/:id',
+    schema: {
+      body: z.object({
+        name: z.string().min(1).optional(),
+        email: z.string().email().optional(),
+        role: z.string().optional(),
+        match: z.number().min(0).max(100).optional(),
+        status: z.string().optional(),
+      }),
+      response: { 200: CandidateDTO, 404: z.object({ error: z.string() }) },
+    },
+    handler: async (req, reply) => {
       const { id } = req.params as { id: string };
-      return removeCandidate(id);
+      if (!Types.ObjectId.isValid(id)) return reply.code(404).send({ error: 'Not found' });
+      const updated = await Candidate.findByIdAndUpdate(id, { $set: req.body }, { new: true, runValidators: true })
+        .lean({ virtuals: true });
+      if (!updated) return reply.code(404).send({ error: 'Not found' });
+      return mapOut(updated);
+    },
+  });
+
+  // DELETE
+  r.route({
+    method: 'DELETE',
+    url: '/candidates/:id',
+    schema: { response: { 200: z.object({ ok: z.boolean() }), 404: z.object({ error: z.string() }) } },
+    handler: async (req, reply) => {
+      const { id } = req.params as { id: string };
+      if (!Types.ObjectId.isValid(id)) return reply.code(404).send({ error: 'Not found' });
+      const res = await Candidate.findByIdAndDelete(id);
+      if (!res) return reply.code(404).send({ error: 'Not found' });
+      return { ok: true };
     },
   });
 };
 
+export { candidateRoutes };
 export default candidateRoutes;

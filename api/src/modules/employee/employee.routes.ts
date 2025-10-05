@@ -1,65 +1,115 @@
+// api/src/modules/employee/employee.routes.ts
 import type { FastifyPluginAsync } from 'fastify';
+import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import {
-  listEmployees, getEmployeeById, createEmployee, updateEmployee, removeEmployee
-} from './employee.service.js';
+import { Types } from 'mongoose';
+import { Employee } from './employee.model.js'; // ajusta path
 
-const Employee = z.object({
+const EmployeeDTO = z.object({
   id: z.string(),
   name: z.string(),
   email: z.string().email(),
   role: z.string(),
+  baseSalary: z.number(),
+  monthlyHours: z.number(),
   phone: z.string().optional(),
-  baseSalary: z.number().int().nonnegative(),
-  monthlyHours: z.number().int().positive(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
 
-const CreateBody = Employee.omit({ id: true, createdAt: true, updatedAt: true });
-const UpdateBody = CreateBody.partial();
+const ListOut = z.object({
+  items: z.array(EmployeeDTO),
+  total: z.number().int().nonnegative(),
+});
+
+function mapOut(doc: any) {
+  return {
+    id: String(doc.id ?? doc._id),
+    name: doc.name,
+    email: doc.email,
+    role: doc.role,
+    baseSalary: doc.baseSalary,
+    monthlyHours: doc.monthlyHours,
+    phone: doc.phone,
+    createdAt: typeof doc.createdAt === 'string' ? doc.createdAt : new Date(doc.createdAt).toISOString(),
+    updatedAt: typeof doc.updatedAt === 'string' ? doc.updatedAt : new Date(doc.updatedAt).toISOString(),
+  };
+}
 
 const employeeRoutes: FastifyPluginAsync = async (app) => {
-  // ⚠️ Tu frontend de Empleados espera un ARRAY (no paginado)
-  app.get('/employees', {
-    schema: { response: { 200: z.array(Employee) } },
-    handler: async () => listEmployees(),
+  const r = app.withTypeProvider<ZodTypeProvider>();
+
+  r.route({
+    method: 'GET',
+    url: '/employees',
+    schema: { response: { 200: ListOut } },
+    handler: async () => {
+      const items = await Employee.find().sort({ createdAt: -1 }).lean({ virtuals: true });
+      const total = await Employee.countDocuments({});
+      return { items: items.map(mapOut), total };
+    },
   });
 
-  app.get('/employees/:id', {
-    schema: { response: { 200: Employee } },
+  r.route({
+    method: 'GET',
+    url: '/employees/:id',
+    schema: { response: { 200: EmployeeDTO, 404: z.object({ error: z.string() }) } },
     handler: async (req, reply) => {
       const { id } = req.params as { id: string };
-      const found = await getEmployeeById(id);
-      if (!found) return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Employee not found' } });
-      return found;
+      if (!Types.ObjectId.isValid(id)) return reply.code(404).send({ error: 'Not found' });
+      const found = await Employee.findById(id).lean({ virtuals: true });
+      if (!found) return reply.code(404).send({ error: 'Not found' });
+      return mapOut(found);
     },
   });
 
-  app.post('/employees', {
-    schema: { body: CreateBody, response: { 201: Employee } },
-    handler: async (req, reply) => {
-      const created = await createEmployee(req.body as any);
-      reply.code(201);
-      return created;
+  r.route({
+    method: 'POST',
+    url: '/employees',
+    schema: {
+      body: z.object({
+        name: z.string().min(1),
+        email: z.string().email(),
+        role: z.string(),
+        baseSalary: z.number().min(0),
+        monthlyHours: z.number().min(0),
+        phone: z.string().optional(),
+      }),
+      response: { 200: EmployeeDTO },
     },
-  });
-
-  app.patch('/employees/:id', {
-    schema: { body: UpdateBody, response: { 200: Employee } },
-    handler: async (req, reply) => {
-      const { id } = req.params as { id: string };
-      const updated = await updateEmployee(id, req.body as any);
-      if (!updated) return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Employee not found' } });
-      return updated;
-    },
-  });
-
-  app.delete('/employees/:id', {
-    schema: { response: { 200: z.object({ ok: z.boolean() }) } },
     handler: async (req) => {
+      const doc = await Employee.create(req.body);
+      return mapOut(doc.toObject({ virtuals: true }));
+    },
+  });
+
+  r.route({
+    method: 'PATCH',
+    url: '/employees/:id',
+    schema: {
+      body: EmployeeDTO.partial().omit({ id: true, createdAt: true, updatedAt: true }),
+      response: { 200: EmployeeDTO, 404: z.object({ error: z.string() }) },
+    },
+    handler: async (req, reply) => {
       const { id } = req.params as { id: string };
-      return removeEmployee(id);
+      if (!Types.ObjectId.isValid(id)) return reply.code(404).send({ error: 'Not found' });
+      const updated = await Employee.findByIdAndUpdate(id, { $set: req.body }, { new: true, runValidators: true })
+        .lean({ virtuals: true });
+      if (!updated) return reply.code(404).send({ error: 'Not found' });
+      return mapOut(updated);
+    },
+  });
+
+  r.route({
+    method: 'DELETE',
+    url: '/employees/:id',
+    schema: { response: { 200: z.object({ ok: z.boolean() }), 404: z.object({ error: z.string() }) } },
+    handler: async (req, reply) => {
+      const { id } = req.params as { id: string };
+      if (!Types.ObjectId.isValid(id)) return reply.code(404).send({ error: 'Not found' });
+      const res = await Employee.findByIdAndDelete(id);
+      if (!res) return reply.code(404).send({ error: 'Not found' });
+      return { ok: true };
     },
   });
 };

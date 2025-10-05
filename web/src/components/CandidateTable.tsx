@@ -1,6 +1,6 @@
 import type { Candidate } from '@/features/candidates/dto';
-import { Badge } from '../components/Badge';
-import { Skeleton } from '../components/Skeleton';
+import { Badge } from './ui/Badge';
+import { Skeleton } from './ui/Skeleton';
 import { Empty } from '../components/ui/Empty';
 
 type Props = { data: Candidate[]; loading?: boolean; onDelete?: (id: string) => void };

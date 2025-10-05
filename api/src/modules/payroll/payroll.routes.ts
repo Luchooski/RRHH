@@ -70,21 +70,7 @@ const payrollRoutes: FastifyPluginAsync = async (app) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
 
   // LIST (paginado)
-  r.route({
-    method: 'GET',
-    url: '/payrolls',
-    schema: { querystring: QueryList, response: { 200: ListOut } },
-    handler: async (req) => {
-      const { period, employee, status, limit, skip } = req.query;
-      const res = await listPayrolls({ period, employee, status, limit, skip });
-      return {
-        items: res.items.map(mapOut),
-        total: res.total,
-        limit: res.limit,
-        skip: res.skip,
-      };
-    },
-  });
+  
 
   // DETAIL
   r.route({
@@ -151,20 +137,29 @@ const payrollRoutes: FastifyPluginAsync = async (app) => {
 
   // Alias español (opcional)
   r.route({
-    method: 'GET',
-    url: '/liquidaciones',
-    schema: { querystring: QueryList, response: { 200: ListOut } },
-    handler: async (req) => {
-      const { period, employee, status, limit, skip } = req.query;
-      const res = await listPayrolls({ period, employee, status, limit, skip });
-      return {
-        items: res.items.map(mapOut),
-        total: res.total,
-        limit: res.limit,
-        skip: res.skip,
-      };
-    },
-  });
+  method: 'GET',
+  url: '/payrolls',
+  schema: { querystring: QueryList, response: { 200: ListOut } },
+  handler: async (req) => {
+    const { period, employee, status, limit, skip } = req.query;
+    const res = await listPayrolls({ period, employee, status, limit, skip });
+
+    // 🔎 Log de diagnóstico: ver filtros y resultados
+    (app.log?.info ?? console.log).call(app.log, {
+      msg: 'GET /payrolls',
+      query: { period, employee, status, limit, skip },
+      total: res.total,
+    });
+
+    return {
+      items: res.items.map(mapOut),
+      total: res.total,
+      limit: res.limit,
+      skip: res.skip,
+    };
+  },
+});
+
 };
 
 export { payrollRoutes };

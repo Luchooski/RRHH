@@ -15,6 +15,8 @@ import './styles/print.css';
 import { AuthProvider } from './features/auth/auth';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ToastProvider } from './components/ui/Toast';
+import { ConfirmDialogController } from './components/ui/ConfirmDialog';
+
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -25,6 +27,7 @@ createRoot(document.getElementById('root')!).render(
             <Suspense fallback={<div className="p-6">Cargando…</div>}>
               <RouterProvider router={router} />
             </Suspense>
+            <ConfirmDialogController />
           </AuthProvider>
         </ToastProvider>
         <ReactQueryDevtools initialIsOpen={false} />

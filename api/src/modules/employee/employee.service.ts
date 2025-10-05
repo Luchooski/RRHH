@@ -1,44 +1,143 @@
-import { EmployeeModel, type EmployeeDoc } from './employee.model.js';
-
-function mapDoc(d: EmployeeDoc) {
-  return {
-    id: String(d._id),
-    name: d.name,
-    email: d.email,
-    role: d.role,
-    phone: d.phone ?? undefined,
-    baseSalary: d.baseSalary,
-    monthlyHours: d.monthlyHours,
-    createdAt: d.createdAt?.toISOString?.() ?? new Date().toISOString(),
-    updatedAt: d.updatedAt?.toISOString?.() ?? new Date().toISOString(),
-  };
-}
-
-export async function listEmployees() {
-  const docs = await EmployeeModel.find({}).sort({ createdAt: -1 }).lean();
-  return docs.map((d) => mapDoc(d as any));
-}
-
-export async function getEmployeeById(id: string) {
-  const d = await EmployeeModel.findById(id).lean();
-  return d ? mapDoc(d as any) : null;
-}
-
-export async function createEmployee(input: {
-  name: string; email: string; role: string; phone?: string; baseSalary: number; monthlyHours: number;
-}) {
-  const created = await EmployeeModel.create(input);
-  return mapDoc(created.toObject() as any);
-}
-
-export async function updateEmployee(id: string, input: Partial<{
-  name: string; email: string; role: string; phone?: string; baseSalary: number; monthlyHours: number;
-}>) {
-  const updated = await EmployeeModel.findByIdAndUpdate(id, input, { new: true }).lean();
-  return updated ? mapDoc(updated as any) : null;
-}
-
-export async function removeEmployee(id: string) {
-  await EmployeeModel.findByIdAndDelete(id);
-  return { ok: true };
-}
+[{
+	"resource": "/c:/Users/Lucho/Documents/GitHub/RRHH/api/src/modules/employee/employee.service.ts",
+	"owner": "typescript",
+	"code": "2305",
+	"severity": 8,
+	"message": "Module '\"./employee.model.js\"' has no exported member 'EmployeeModel'.",
+	"source": "ts",
+	"startLineNumber": 1,
+	"startColumn": 10,
+	"endLineNumber": 1,
+	"endColumn": 23,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/Lucho/Documents/GitHub/RRHH/api/src/modules/employee/employee.service.ts",
+	"owner": "typescript",
+	"code": "7006",
+	"severity": 8,
+	"message": "Parameter 'd' implicitly has an 'any' type.",
+	"source": "ts",
+	"startLineNumber": 19,
+	"startColumn": 20,
+	"endLineNumber": 19,
+	"endColumn": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/Lucho/Documents/GitHub/RRHH/web/src/features/candidates/CandidateForm.tsx",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type 'never'.",
+	"source": "ts",
+	"startLineNumber": 14,
+	"startColumn": 3,
+	"endLineNumber": 14,
+	"endColumn": 7,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/Lucho/Documents/GitHub/RRHH/web/src/features/candidates/CandidateForm.tsx",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type 'never'.",
+	"source": "ts",
+	"startLineNumber": 15,
+	"startColumn": 3,
+	"endLineNumber": 15,
+	"endColumn": 8,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/Lucho/Documents/GitHub/RRHH/web/src/features/candidates/CandidateForm.tsx",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type 'never'.",
+	"source": "ts",
+	"startLineNumber": 16,
+	"startColumn": 3,
+	"endLineNumber": 16,
+	"endColumn": 7,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/Lucho/Documents/GitHub/RRHH/web/src/features/candidates/CandidateForm.tsx",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'number' is not assignable to type 'never'.",
+	"source": "ts",
+	"startLineNumber": 17,
+	"startColumn": 3,
+	"endLineNumber": 17,
+	"endColumn": 8,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/Lucho/Documents/GitHub/RRHH/web/src/features/candidates/CandidateForm.tsx",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type 'never'.",
+	"source": "ts",
+	"startLineNumber": 18,
+	"startColumn": 3,
+	"endLineNumber": 18,
+	"endColumn": 9,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/Lucho/Documents/GitHub/RRHH/web/src/features/candidates/CandidateForm.tsx",
+	"owner": "typescript",
+	"code": "2345",
+	"severity": 8,
+	"message": "Argument of type '(f: Record<string, never>) => { [x: string]: any; }' is not assignable to parameter of type 'SetStateAction<Record<string, never>>'.\n  Type '(f: Record<string, never>) => { [x: string]: any; }' is not assignable to type '(prevState: Record<string, never>) => Record<string, never>'.\n    Type '{ [x: string]: any; }' is not assignable to type 'Record<string, never>'.\n      'string' index signatures are incompatible.\n        Type 'any' is not assignable to type 'never'.",
+	"source": "ts",
+	"startLineNumber": 31,
+	"startColumn": 15,
+	"endLineNumber": 31,
+	"endColumn": 48,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/Lucho/Documents/GitHub/RRHH/web/src/features/candidates/CandidatePage.tsx",
+	"owner": "typescript",
+	"code": "2339",
+	"severity": 8,
+	"message": "Property 'length' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.",
+	"source": "ts",
+	"startLineNumber": 61,
+	"startColumn": 58,
+	"endLineNumber": 61,
+	"endColumn": 64,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/Lucho/Documents/GitHub/RRHH/web/src/features/candidates/CandidatePage.tsx",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'never[] | NonNullable<NoInfer<TQueryFnData>>' is not assignable to type '{ id: string; name: string; email: string; role: string; match: number; status: string; createdAt: string; updatedAt: string; }[]'.\n  Type '{}' is missing the following properties from type '{ id: string; name: string; email: string; role: string; match: number; status: string; createdAt: string; updatedAt: string; }[]': length, pop, push, concat, and 29 more.",
+	"source": "ts",
+	"startLineNumber": 77,
+	"startColumn": 27,
+	"endLineNumber": 77,
+	"endColumn": 31,
+	"relatedInformation": [
+		{
+			"startLineNumber": 6,
+			"startColumn": 16,
+			"endLineNumber": 6,
+			"endColumn": 20,
+			"message": "The expected type comes from property 'data' which is declared here on type 'IntrinsicAttributes & Props'",
+			"resource": "/c:/Users/Lucho/Documents/GitHub/RRHH/web/src/components/CandidateTable.tsx"
+		}
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/Lucho/Documents/GitHub/RRHH/web/src/features/candidates/dto.ts",
+	"owner": "typescript",
+	"code": "2353",
+	"severity": 8,
+	"message": "Object literal may only specify known properties, and 'id' does not exist in type 'Mask<\"name\" | \"email\" | \"role\" | \"match\" | \"status\">'.",
+	"source": "ts",
+	"startLineNumber": 17,
+	"startColumn": 11,
+	"endLineNumber": 17,
+	"endColumn": 13,
+	"origin": "extHost1"
+}]

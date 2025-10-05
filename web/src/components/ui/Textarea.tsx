@@ -1,14 +1,14 @@
-import { forwardRef, type InputHTMLAttributes } from 'react';
+import { forwardRef, type TextareaHTMLAttributes } from 'react';
 import { cn } from '@/lib/cn';
 
-export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
-  function Input({ className, ...props }, ref) {
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(
+  function Textarea({ className, ...props }, ref) {
     return (
-      <input
+      <textarea
         ref={ref}
         className={cn(
           'w-full rounded-lg border border-[--color-border] bg-[--color-card] text-[--color-fg]',
-          'px-3 py-2 text-sm shadow-sm outline-none',
+          'px-3 py-2 text-sm shadow-sm outline-none min-h-[96px]',
           'focus-visible:ring-2 focus-visible:ring-blue-500/40',
           className,
         )}

@@ -1,66 +1,39 @@
-import type { z } from 'zod';
-import type { Candidate, CandidateCreateInput, CandidateUpdateInput } from './dto';
-import {
-  CandidateOutput,
-  CandidateCreateSchema,
-  CandidateUpdateSchema,
-  CandidateQuerySchema,
-} from './dto';
 import { http } from '@/lib/http';
+import type {
+  Candidate,
+  CandidateCreateInput,
+  CandidateUpdateInput,
+  CandidateQuery,
+  CandidateListOutput,
+} from './dto';
 
-const base = `/api/v1/candidates`;
-
-export type CandidateListOut = { items: Candidate[]; total: number };
-
-export async function apiListCandidates(params: Partial<z.infer<typeof CandidateQuerySchema>> = {}) {
-  const query = CandidateQuerySchema.parse({
-    limit: params.limit ?? 20,
-    skip: params.skip ?? 0,
-    q: params.q,
-    status: params.status,
-    role: params.role,
-    matchMin: params.matchMin,
-    matchMax: params.matchMax,
-    createdFrom: params.createdFrom,
-    createdTo: params.createdTo,
-    sortField: params.sortField,
-    sortDir: params.sortDir,
-  });
-
+function toQS(p?: Partial<CandidateQuery>) {
+  if (!p) return '';
   const qs = new URLSearchParams();
-  if (query.q) qs.set('q', query.q);
-  if (query.status) qs.set('status', query.status);
-  if (query.role) qs.set('role', query.role);
-  if (typeof query.matchMin === 'number') qs.set('matchMin', String(query.matchMin));
-  if (typeof query.matchMax === 'number') qs.set('matchMax', String(query.matchMax));
-  if (query.createdFrom) qs.set('createdFrom', query.createdFrom);
-  if (query.createdTo) qs.set('createdTo', query.createdTo);
-  if (query.sortField) qs.set('sortField', query.sortField);
-  if (query.sortDir) qs.set('sortDir', query.sortDir);
-  qs.set('limit', String(query.limit));
-  qs.set('skip', String(query.skip));
-
-  // ⬇️ devuelve { items, total } directamente (sin .data)
-  return http.get<CandidateListOut>(`${base}?${qs.toString()}`, { auth: true });
+  if (p.sortField) qs.set('sortField', p.sortField);
+  if (p.sortDir)   qs.set('sortDir', p.sortDir);
+  if (p.limit != null) qs.set('limit', String(p.limit));
+  if (p.skip  != null) qs.set('skip',  String(p.skip));
+  const s = qs.toString();
+  return s ? `?${s}` : '';
 }
 
-export async function apiCreateCandidate(input: CandidateCreateInput) {
-  const safe = CandidateCreateSchema.parse(input);
-  // ⬇️ devuelve Candidate directamente
-  return http.post<Candidate>(base, safe, { auth: true });
+export async function apiListCandidates(params?: Partial<CandidateQuery>) {
+  return http.get<CandidateListOutput>(`/api/v1/candidates${toQS(params)}`, { auth: true });
 }
 
 export async function apiGetCandidate(id: string) {
-  const data = await http.get<Candidate | null>(`${base}/${id}`, { auth: true });
-  return data ? CandidateOutput.parse(data) : null;
+  return http.get<Candidate>(`/api/v1/candidates/${encodeURIComponent(id)}`, { auth: true });
+}
+
+export async function apiCreateCandidate(input: CandidateCreateInput) {
+  return http.post<Candidate>('/api/v1/candidates', input, { auth: true });
 }
 
 export async function apiUpdateCandidate(id: string, input: CandidateUpdateInput) {
-  const safe = CandidateUpdateSchema.parse(input); // ⬅️ usar Update schema, no Create
-  const data = await http.patch<Candidate | null>(`${base}/${id}`, safe, { auth: true });
-  return data ? CandidateOutput.parse(data) : null;
+  return http.patch<Candidate>(`/api/v1/candidates/${encodeURIComponent(id)}`, input, { auth: true });
 }
 
 export async function apiDeleteCandidate(id: string) {
-  return http.delete<{ success: boolean }>(`${base}/${id}`, { auth: true });
+  return http.delete<{ ok: boolean }>(`/api/v1/candidates/${encodeURIComponent(id)}`, { auth: true });
 }

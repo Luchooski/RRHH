@@ -1,13 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Candidate, CandidateCreateInput, CandidateUpdateInput, CandidateQuery } from './dto';
-import { apiListCandidates, apiCreateCandidate, apiUpdateCandidate, apiDeleteCandidate, apiGetCandidate } from './api';
+import {
+  apiListCandidates,
+  apiCreateCandidate,
+  apiUpdateCandidate,
+  apiDeleteCandidate,
+  apiGetCandidate,
+} from './api';
 
 const key = (params?: Partial<CandidateQuery>) => ['candidates', params ?? {}];
 
 export function useListCandidates(params: Partial<CandidateQuery>) {
   return useQuery<Candidate[]>({
     queryKey: key(params),
-    queryFn: () => apiListCandidates(params),
+    // 👇 devolvemos ARRAY (items) para que .length exista sin errores
+    queryFn: async () => {
+      const out = await apiListCandidates(params);
+      return out.items;
+    },
     staleTime: 60_000,
     gcTime: 5 * 60_000,
   });

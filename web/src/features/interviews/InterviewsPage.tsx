@@ -4,7 +4,7 @@ import { getInterviews, createInterview, updateInterview, deleteInterview } from
 import type { IStatus } from './schema';
 import StatusPill from '../../components/StatusPill';
 import InterviewCard from './InterviewCard';
-import Modal from '../../components/Modal';
+import Modal from '../../components/ui/Modal';
 import Toast from '../../components/Toast';
 import { pushHistory } from '../history/HistoryDrawer';
 

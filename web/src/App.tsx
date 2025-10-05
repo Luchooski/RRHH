@@ -3,7 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 
 export default function App() {
   return (
-    <div className="min-h-dvh grid grid-cols-1 md:grid-cols-[240px_1fr]">
+    <div className="min-h-dvh grid grid-cols-1 lg:grid-cols-[auto_1fr] bg-[--color-bg] text-[--color-fg] transition-colors">
       <aside className="border-b md:border-b-0 md:border-r p-4 space-y-3">
         <h1 className="text-lg font-semibold">RRHH</h1>
         <nav className="grid gap-2 text-sm">

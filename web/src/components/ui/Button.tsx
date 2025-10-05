@@ -1,26 +1,37 @@
-import type { ButtonHTMLAttributes } from 'react';
-import { clsx } from 'clsx';
+import { forwardRef, type ButtonHTMLAttributes } from 'react';
+import { cn } from '@/lib/cn';
 
-export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'default' | 'primary' | 'ghost' | 'danger';
+type Variant = 'default' | 'primary' | 'ghost' | 'danger';
+type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: Variant;
   full?: boolean;
 };
 
-function Button({ variant = 'default', full, className, ...rest }: ButtonProps) {
+const styles: Record<Variant, string> = {
+  default:
+    'bg-[--color-card] text-[--color-fg] border border-[--color-border] hover:bg-black/5 dark:hover:bg-white/5',
+  primary:
+    'bg-blue-600 text-white hover:bg-blue-700',
+  ghost:
+    'border border-[--color-border] bg-[--color-card] text-[--color-fg] hover:bg-black/5 dark:hover:bg-white/5',
+  danger:
+    'bg-red-600 text-white hover:bg-red-700',
+};
+
+export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
+  { className, variant = 'default', full, ...props }, ref,
+) {
   return (
     <button
-      className={clsx(
-        'btn',
-        variant === 'primary' && 'btn-primary',
-        variant === 'ghost' && 'btn-ghost',
-        variant === 'danger' && 'btn-danger',
+      ref={ref}
+      className={cn(
+        'inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-semibold transition',
+        'disabled:opacity-60 disabled:cursor-not-allowed',
+        styles[variant],
         full && 'w-full',
-        className
+        className,
       )}
-      {...rest}
+      {...props}
     />
   );
-}
-
-export { Button };        // named export (por si alguien lo usa así)
-export default Button;    // default export (para `import Button from ...`)
+});

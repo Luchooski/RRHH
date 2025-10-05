@@ -4,6 +4,10 @@ export type HttpOptions = RequestInit & { auth?: boolean };
 const rawBase = (import.meta.env.VITE_API_URL || '').trim();
 const API_BASE = (rawBase || 'http://localhost:4000').replace(/\/+$/, '');
 
+const AUTH_MODE = (import.meta.env.VITE_AUTH_MODE || 'bearer').toLowerCase() as
+  | 'bearer'
+  | 'cookie';
+
 let __token: string | null =
   (typeof localStorage !== 'undefined' && localStorage.getItem('auth_token')) || null;
 let __onUnauthorized: null | (() => void) = null;
@@ -27,36 +31,70 @@ function buildUrl(path: string) {
   return `${left}${right}`;
 }
 
+function attachAuthHeaders(headers: Record<string, string>, opts: HttpOptions) {
+  if (opts.auth) {
+    if (AUTH_MODE === 'bearer' && __token) {
+      headers.Authorization = `Bearer ${__token}`;
+    }
+    // en modo cookie no seteamos header; usamos credentials: 'include'
+  }
+}
+
+function parseMaybeJson(text: string | null) {
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    // si no es JSON, devolver texto crudo
+    return text;
+  }
+}
+
 async function request<T>(path: string, opts: HttpOptions): Promise<T> {
   const url = buildUrl(path);
   const headers: Record<string, string> = {
+    Accept: 'application/json',
     ...(opts.headers as any),
   };
 
-  // Solo fijar Content-Type JSON si realmente enviamos body
+  // Sólo Content-Type JSON si hay body
   const hasBody = opts.body != null;
   if (hasBody && !('Content-Type' in headers)) {
     headers['Content-Type'] = 'application/json';
   }
 
-  if (opts.auth && __token) {
-    headers.Authorization = `Bearer ${__token}`;
-  }
+  attachAuthHeaders(headers, opts);
 
-  const res = await fetch(url, { ...opts, headers });
+  const fetchOpts: RequestInit = {
+    ...opts,
+    headers,
+    // si usamos cookies httpOnly, necesitamos credenciales
+    credentials: AUTH_MODE === 'cookie' && opts.auth ? 'include' : opts.credentials,
+  };
+
+  const res = await fetch(url, fetchOpts);
 
   if (res.status === 401 && __onUnauthorized) {
-    try { __onUnauthorized(); } catch {}
+    try {
+      __onUnauthorized();
+    } catch {}
+  }
+
+  // 204 No Content
+  if (res.status === 204) {
+    return null as unknown as T;
   }
 
   const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
+  const data = parseMaybeJson(text);
 
   if (!res.ok) {
-    const message = (data && (data.error?.message || data.message)) || `HTTP ${res.status}`;
+    const message =
+      (data && (data.error?.message || (typeof data === 'string' ? data : data.message))) ||
+      `HTTP ${res.status}`;
     const err = new Error(message) as any;
     err.status = res.status;
-    err.details = data?.error?.details ?? data;
+    err.details = (data && (data.error?.details ?? data)) || null;
     throw err;
   }
 
@@ -68,12 +106,19 @@ async function requestBlob(path: string, opts: HttpOptions): Promise<Blob> {
   const headers: Record<string, string> = {
     ...(opts.headers as any),
   };
-  if (opts.auth && __token) {
-    headers.Authorization = `Bearer ${__token}`;
-  }
-  const res = await fetch(url, { ...opts, headers });
+
+  attachAuthHeaders(headers, opts);
+
+  const res = await fetch(url, {
+    ...opts,
+    headers,
+    credentials: AUTH_MODE === 'cookie' && opts.auth ? 'include' : opts.credentials,
+  });
+
   if (res.status === 401 && __onUnauthorized) {
-    try { __onUnauthorized(); } catch {}
+    try {
+      __onUnauthorized();
+    } catch {}
   }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.blob();
@@ -92,7 +137,10 @@ export const http = {
   blob:  (path: string, opts?: HttpOptions) => requestBlob(path, { ...opts, method: 'GET' }),
 };
 
-// Compat (por si alguien lo usa)
+// Compat
 export function apiUrl(path: string = '') {
   return buildUrl(path || '/');
 }
+
+// Exponer modo auth por si hace falta en UI
+export const authMode = AUTH_MODE;

@@ -1,4 +1,5 @@
 import mongoose, { Schema, InferSchemaType } from 'mongoose';
+import { env } from '../../config/env.js';
 
 const ConceptSchema = new Schema({
   id: { type: String, required: true },
@@ -15,7 +16,12 @@ const ConceptSchema = new Schema({
   priority: { type: Number, default: 100 },
   enabled: { type: Boolean, default: true },
   customBase: Number
-}, { _id: false });
+}, { 
+  _id: false,
+  timestamps: true,
+  versionKey: false,
+  collection: env.PAYROLLS_COLL,
+ });
 
 const PayrollSchema = new Schema({
   employeeId: { type: String, required: true, index: true },
