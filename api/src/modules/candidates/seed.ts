@@ -1,4 +1,4 @@
-import { CandidateModel } from './candidate.model.js';
+import { Candidate } from './candidate.model.js';
 
 const skillsPool = ['react','node','typescript','mongodb','express','tailwind','aws','jest','docker'];
 
@@ -16,7 +16,7 @@ export async function seedCandidates(req: any, res: any) {
     source: 'import',
     notes: null,
   }));
-  await CandidateModel.insertMany(docs, { ordered: false });
+  await Candidate.insertMany(docs, { ordered: false });
   return res.status(201).json({ ok: true, inserted: docs.length });
 }
 

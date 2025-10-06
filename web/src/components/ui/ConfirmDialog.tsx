@@ -15,7 +15,7 @@ export function ConfirmDialogController() {
   const [open, setOpen] = useState(false);
   const [opts, setOpts] = useState<Options>({});
   const titleId = useId();
-  const resolver = useRef<(v: boolean) => void>();
+  const resolver = useRef<((v: boolean) => void) | null>(null);
 
   (window as any).__openConfirm = (o: Options) =>
     new Promise<boolean>((res) => {

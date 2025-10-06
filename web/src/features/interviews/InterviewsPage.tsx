@@ -1,15 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getInterviews, createInterview, updateInterview, deleteInterview } from './api';
+import { getInterviews, updateInterview, deleteInterview } from './api';
 import type { IStatus } from './schema';
 import StatusPill from '../../components/StatusPill';
 import InterviewCard from './InterviewCard';
 import Modal from '../../components/ui/Modal';
-import Toast from '../../components/Toast';
+import { useToast } from '@/components/ui/Toast';
 import { pushHistory } from '../history/HistoryDrawer';
+
+type Flash = { type: 'success' | 'error'; text: string };
 
 export default function InterviewsPage() {
   const qc = useQueryClient();
+  const toast = useToast();
+
   const { data = [], isLoading, isError } = useQuery({
     queryKey: ['interviews'],
     queryFn: getInterviews,
@@ -17,31 +21,37 @@ export default function InterviewsPage() {
 
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'Todos' | IStatus>('Todos');
-  const [toast, setToast] = useState<string | undefined>(undefined);
+  const [flash, setFlash] = useState<Flash | null>(null);
+
+  useEffect(() => {
+    if (!flash) return;
+    flash.type === 'success' ? toast.success(flash.text) : toast.error(flash.text);
+    setFlash(null);
+  }, [flash, toast]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return data
-      .filter(r => filter === 'Todos' ? true : r.status === filter)
-      .filter(r => term ? r.name.toLowerCase().includes(term) : true);
+      .filter(r => (filter === 'Todos' ? true : r.status === filter))
+      .filter(r => (term ? r.name.toLowerCase().includes(term) : true));
   }, [data, filter, search]);
 
   const onOk = (msg: string) => {
     qc.invalidateQueries({ queryKey: ['interviews'] });
     pushHistory(msg);
-    setToast(msg);
+    setFlash({ type: 'success', text: msg });
   };
 
   const mUpdate = useMutation({
     mutationFn: ({ id, status }: { id: string; status: IStatus }) => updateInterview(id, { status }),
     onSuccess: () => onOk('Cambió estado de entrevista'),
-    onError: () => setToast('Error al actualizar estado'),
+    onError: () => setFlash({ type: 'error', text: 'Error al actualizar estado' }),
   });
 
   const mDelete = useMutation({
     mutationFn: deleteInterview,
     onSuccess: () => onOk('Borró entrevista'),
-    onError: () => setToast('Error al borrar entrevista'),
+    onError: () => setFlash({ type: 'error', text: 'Error al borrar entrevista' }),
   });
 
   // Modal nota (si la API la soporta luego la persistimos)
@@ -52,7 +62,7 @@ export default function InterviewsPage() {
   const openNoteFor = (id: string) => { setActiveId(id); setNoteText(''); setNoteOpen(true); };
   const saveNote = () => {
     pushHistory('Añadió nota a entrevista', `id=${activeId}: ${noteText}`);
-    setToast('Nota guardada');
+    setFlash({ type: 'success', text: 'Nota guardada' });
     setNoteOpen(false);
     setActiveId(null);
     setNoteText('');
@@ -60,7 +70,6 @@ export default function InterviewsPage() {
 
   return (
     <div className="section space-y-5 sm:space-y-6">
-      <Toast message={toast} />
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl sm:text-2xl font-semibold">Entrevistas</h1>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -68,12 +77,12 @@ export default function InterviewsPage() {
             className="input w-full sm:w-64"
             placeholder="Buscar por nombre…"
             value={search}
-            onChange={(e)=>setSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
           />
           <select
             className="input w-full sm:w-40"
             value={filter}
-            onChange={(e)=>setFilter(e.target.value as any)}
+            onChange={(e) => setFilter(e.target.value as 'Todos' | IStatus)}
             aria-label="Filtrar por estado"
           >
             <option>Todos</option>
@@ -95,14 +104,14 @@ export default function InterviewsPage() {
             <div className="card p-6 animate-pulse">Cargando…</div>
           </>
         ) : filtered.length ? (
-          filtered.map(r => (
+          filtered.map((r) => (
             <InterviewCard
               key={r.id}
               name={r.name}
               datetime={r.datetime}
               status={r.status}
-              onStatus={(s)=>mUpdate.mutate({ id: r.id, status: s })}
-              onNote={()=>openNoteFor(r.id)}
+              onStatus={(s) => mUpdate.mutate({ id: r.id, status: s })}
+              onNote={() => openNoteFor(r.id)}
             />
           ))
         ) : (
@@ -125,7 +134,7 @@ export default function InterviewsPage() {
             {isLoading ? (
               <tr><td className="p-6" colSpan={4}>Cargando…</td></tr>
             ) : filtered.length ? (
-              filtered.map(row => (
+              filtered.map((row) => (
                 <tr key={row.id} className="border-t border-[--color-border] hover:bg-black/5 dark:hover:bg-white/5">
                   <td className="p-3 font-medium">{row.name}</td>
                   <td className="p-3">{new Date(row.datetime).toLocaleString()}</td>
@@ -136,12 +145,12 @@ export default function InterviewsPage() {
                         className="input"
                         aria-label={`Cambiar estado de ${row.name}`}
                         value={row.status}
-                        onChange={(e)=>mUpdate.mutate({ id: row.id, status: e.target.value as IStatus })}
+                        onChange={(e) => mUpdate.mutate({ id: row.id, status: e.target.value as IStatus })}
                       >
-                        {['Programada','Completada','Cancelada','Pendiente'].map(s=><option key={s}>{s}</option>)}
+                        {['Programada', 'Completada', 'Cancelada', 'Pendiente'].map((s) => <option key={s}>{s}</option>)}
                       </select>
-                      <button className="btn btn-primary" onClick={()=>openNoteFor(row.id)}>Añadir nota</button>
-                      <button className="btn" onClick={()=>mDelete.mutate(row.id)}>Borrar</button>
+                      <button className="btn btn-primary" onClick={() => openNoteFor(row.id)}>Añadir nota</button>
+                      <button className="btn" onClick={() => mDelete.mutate(row.id)}>Borrar</button>
                     </div>
                   </td>
                 </tr>
@@ -154,17 +163,18 @@ export default function InterviewsPage() {
       </section>
 
       {/* Modal Nota */}
-      <Modal open={noteOpen} onClose={()=>setNoteOpen(false)} title="Añadir nota">
-        <form onSubmit={(e)=>{ e.preventDefault(); saveNote(); }}>
+      <Modal open={noteOpen} onClose={() => setNoteOpen(false)}>
+        <h2 id="add-note" className="text-lg font-semibold mb-3">Añadir nota</h2>
+        <form onSubmit={(e) => { e.preventDefault(); saveNote(); }}>
           <textarea
             className="input w-full h-28 resize-none"
             placeholder="Escribe una nota breve…"
             value={noteText}
-            onChange={(e)=>setNoteText(e.target.value)}
+            onChange={(e) => setNoteText(e.target.value)}
             autoFocus
           />
           <div className="mt-3 flex gap-2 justify-end">
-            <button type="button" className="btn" onClick={()=>setNoteOpen(false)}>Cancelar</button>
+            <button type="button" className="btn" onClick={() => setNoteOpen(false)}>Cancelar</button>
             <button type="submit" className="btn btn-primary">Guardar</button>
           </div>
         </form>

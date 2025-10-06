@@ -3,7 +3,7 @@ import Topbar from '../components/Topbar';
 import { useEffect, useState } from 'react';
 import HistoryDrawer from '../features/history/HistoryDrawer';
 import SidebarItem from '../components/SidebarItem';
-import { Home, Users, CalendarClock, Upload, IdCard, Receipt, Clock3, History } from 'lucide-react';
+import { Home,BarChart3, Users, CalendarClock,CalendarDays, Upload, IdCard, Receipt, Briefcase, Building2, Clock3, History } from 'lucide-react';
 import SkipLink from '../components/skipLink';
 import Breadcrumbs from '../components/Breadcrumbs';
 
@@ -14,6 +14,10 @@ const NAV = [
   { to: '/cargar-cv',    label: 'Cargar CV',     icon: <Upload size={18}/> },
   { to: '/empleados',    label: 'Empleados',     icon: <IdCard size={18}/> },
   { to: '/liquidaciones',label: 'Liquidaciones', icon: <Receipt size={18}/> },
+  { to: '/clientes',     label: 'Clientes',      icon: <Building2 size={18}/> },
+  { to: '/agenda',     label: 'Agenda',     icon: <CalendarDays className="size-4" /> },
+  { to: '/vacantes',     label: 'Vacantes',      icon: <Briefcase size={18}/> },
+  { to: '/reportes',   label: 'Reportes',   icon: <BarChart3 className="size-4" /> },
   { to: '/horarios',     label: 'Horarios',      icon: <Clock3 size={18}/> },
   { to: '/historial',    label: 'Historial',     icon: <History size={18}/> },
 ];
@@ -106,7 +110,6 @@ export default function App() {
                 to={item.to}
                 icon={item.icon}
                 collapsed={false}
-                onClick={() => setMobileOpen(false)}
               >
                 {item.label}
               </SidebarItem>

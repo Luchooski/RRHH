@@ -1,32 +1,42 @@
-import StatusBadge from '../../components/StatusBadge';
-import KebabMenu from '../../components/KebabMenu';
-import type { Candidate } from './dto';
+import type { ReactNode } from 'react';
 
-export default function CandidateCard({
-  c, onEdit, onDelete
-}: { c: Candidate; onEdit: () => void; onDelete: () => void }) {
+type Props = {
+  name: string;
+  email?: string;
+  location?: string;
+  seniority?: string;
+  skills?: string[];
+  right?: ReactNode; // acciones (botones)
+};
+
+function initials(n: string) {
+  return n.split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase();
+}
+
+export default function CandidateCard({ name, email, location, seniority, skills = [], right }: Props) {
   return (
-    <article className="card p-4 flex flex-col gap-2">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <div className="font-semibold">{c.name}</div>
-          <div className="text-xs text-[--color-muted]">{c.email}</div>
+    <div className="rounded-2xl border bg-white/65 dark:bg-zinc-900/40 backdrop-blur-sm border-zinc-200/80 dark:border-white/10 p-3 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="inline-flex size-10 items-center justify-center rounded-xl bg-black/5 dark:bg-white/10 font-semibold">
+            {initials(name)}
+          </div>
+          <div className="min-w-0">
+            <div className="font-medium truncate">{name}</div>
+            <div className="text-xs text-[--color-muted] truncate">{email ?? '—'}</div>
+          </div>
         </div>
-        <KebabMenu items={[
-          { label: 'Editar', onClick: onEdit },
-          { label: 'Borrar', onClick: onDelete, danger: true }
-        ]}/>
-      </header>
-      <div className="text-sm flex flex-wrap gap-3">
-        <div><span className="text-[--color-muted]">Rol:</span> {c.role}</div>
-        <div><span className="text-[--color-muted]">Match:</span> {c.match}%</div>
-        <div className="inline-flex items-center gap-2">
-          <span className="text-[--color-muted]">Estado:</span> <StatusBadge value={c.status}/>
-        </div>
+        {right}
       </div>
-      <footer className="text-xs text-[--color-muted]">
-        Actualizado {new Date(c.updatedAt).toLocaleDateString()}
-      </footer>
-    </article>
+
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {seniority && <span className="text-xs px-2 py-1 rounded-full bg-blue-600/10 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500/20">{seniority}</span>}
+        {location && <span className="text-xs px-2 py-1 rounded-full bg-zinc-500/10 text-zinc-700 dark:text-zinc-300 ring-1 ring-zinc-400/20">{location}</span>}
+        {skills.slice(0,4).map(s => (
+          <span key={s} className="text-xs px-2 py-1 rounded-full bg-violet-600/10 text-violet-700 dark:text-violet-300 ring-1 ring-violet-500/20">{s}</span>
+        ))}
+        {skills.length > 4 && <span className="text-xs text-[--color-muted]">+{skills.length - 4}</span>}
+      </div>
+    </div>
   );
 }
