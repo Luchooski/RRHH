@@ -1,36 +1,53 @@
-// api/src/modules/candidates/candidate.routes.ts
 import type { FastifyPluginAsync } from 'fastify';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { Types } from 'mongoose';
-import { Candidate } from './candidate.model.js'; // ajusta si tu path difiere
+import { Candidate } from './candidate.model.js';
 
-const CandidateDTO = z.object({
-  id: z.string(),
-  name: z.string(),
+const ErrorDTO = z.object({ error: z.string() });
+
+const Link = z.object({ label: z.string().optional(), url: z.string().url() });
+const CandidateIn = z.object({
+  name: z.string().min(2),
   email: z.string().email(),
-  role: z.string(),
-  match: z.number(),
-  status: z.string(),
+  phone: z.string().optional(),
+  location: z.string().optional(),
+  seniority: z.enum(['jr', 'ssr', 'sr']).optional(),
+  skills: z.array(z.string()).default([]),
+  salaryExpectation: z.number().int().positive().optional(),
+  resumeUrl: z.string().url().optional(),
+  notes: z.string().optional(),
+  tags: z.array(z.string()).default([]),
+  links: z.array(Link).default([]),
+});
+const CandidateOut = CandidateIn.extend({
+  id: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
 
 const ListOut = z.object({
-  items: z.array(CandidateDTO),
-  total: z.number().int().nonnegative(),
+  items: z.array(CandidateOut),
+  total: z.number().int(),
+  page: z.number().int(),
+  limit: z.number().int(),
 });
 
-function mapOut(doc: any) {
+function toOut(c: any) {
   return {
-    id: String(doc.id ?? doc._id),
-    name: doc.name,
-    email: doc.email,
-    role: doc.role,
-    match: doc.match,
-    status: doc.status,
-    createdAt: typeof doc.createdAt === 'string' ? doc.createdAt : new Date(doc.createdAt).toISOString(),
-    updatedAt: typeof doc.updatedAt === 'string' ? doc.updatedAt : new Date(doc.updatedAt).toISOString(),
+    id: String(c._id),
+    name: c.name,
+    email: c.email,
+    phone: c.phone ?? undefined,
+    location: c.location ?? undefined,
+    seniority: c.seniority ?? undefined,
+    skills: c.skills ?? [],
+    salaryExpectation: c.salaryExpectation ?? undefined,
+    resumeUrl: c.resumeUrl ?? undefined,
+    notes: c.notes ?? undefined,
+    tags: c.tags ?? [],
+    links: c.links ?? [],
+    createdAt: new Date(c.createdAt).toISOString(),
+    updatedAt: new Date(c.updatedAt).toISOString(),
   };
 }
 
@@ -41,25 +58,44 @@ const candidateRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'GET',
     url: '/candidates',
-    schema: { response: { 200: ListOut } },
-    handler: async () => {
-      const items = await Candidate.find().sort({ createdAt: -1 }).lean({ virtuals: true });
-      const total = await Candidate.countDocuments({});
-      return { items: items.map(mapOut), total };
+    schema: {
+      querystring: z.object({
+        q: z.string().optional(),
+        page: z.coerce.number().int().min(1).default(1),
+        limit: z.coerce.number().int().min(1).max(100).default(20),
+        seniority: z.enum(['jr','ssr','sr']).optional(),
+      }),
+      response: { 200: ListOut },
+    },
+    handler: async (req) => {
+      const { q, page, limit, seniority } = req.query;
+      const cond: any = {};
+      if (q?.trim()) {
+        cond.$text = { $search: q.trim() };
+      }
+      if (seniority) cond.seniority = seniority;
+
+      const [items, total] = await Promise.all([
+        Candidate.find(cond).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+        Candidate.countDocuments(cond),
+      ]);
+
+      return { items: items.map(toOut), total, page, limit };
     },
   });
 
-  // DETAIL
+  // GET ONE
   r.route({
     method: 'GET',
     url: '/candidates/:id',
-    schema: { response: { 200: CandidateDTO, 404: z.object({ error: z.string() }) } },
+    schema: {
+      params: z.object({ id: z.string() }),
+      response: { 200: CandidateOut, 404: ErrorDTO },
+    },
     handler: async (req, reply) => {
-      const { id } = req.params as { id: string };
-      if (!Types.ObjectId.isValid(id)) return reply.code(404).send({ error: 'Not found' });
-      const found = await Candidate.findById(id).lean({ virtuals: true });
-      if (!found) return reply.code(404).send({ error: 'Not found' });
-      return mapOut(found);
+      const c = await Candidate.findById(req.params.id).lean();
+      if (!c) return reply.code(404).send({ error: 'Candidate not found' });
+      return toOut(c);
     },
   });
 
@@ -68,42 +104,28 @@ const candidateRoutes: FastifyPluginAsync = async (app) => {
     method: 'POST',
     url: '/candidates',
     schema: {
-      body: z.object({
-        name: z.string().min(1),
-        email: z.string().email(),
-        role: z.string(),
-        match: z.number().min(0).max(100),
-        status: z.string().default('Nuevo'),
-      }),
-      response: { 200: CandidateDTO },
+      body: CandidateIn,
+      response: { 200: CandidateOut },
     },
     handler: async (req) => {
-      const doc = await Candidate.create(req.body);
-      return mapOut(doc.toObject({ virtuals: true }));
+      const created = await Candidate.create(req.body);
+      return toOut(created);
     },
   });
 
-  // UPDATE (PATCH)
+  // UPDATE (PUT completo)
   r.route({
-    method: 'PATCH',
+    method: 'PUT',
     url: '/candidates/:id',
     schema: {
-      body: z.object({
-        name: z.string().min(1).optional(),
-        email: z.string().email().optional(),
-        role: z.string().optional(),
-        match: z.number().min(0).max(100).optional(),
-        status: z.string().optional(),
-      }),
-      response: { 200: CandidateDTO, 404: z.object({ error: z.string() }) },
+      params: z.object({ id: z.string() }),
+      body: CandidateIn,
+      response: { 200: CandidateOut, 404: ErrorDTO },
     },
     handler: async (req, reply) => {
-      const { id } = req.params as { id: string };
-      if (!Types.ObjectId.isValid(id)) return reply.code(404).send({ error: 'Not found' });
-      const updated = await Candidate.findByIdAndUpdate(id, { $set: req.body }, { new: true, runValidators: true })
-        .lean({ virtuals: true });
-      if (!updated) return reply.code(404).send({ error: 'Not found' });
-      return mapOut(updated);
+      const updated = await Candidate.findByIdAndUpdate(req.params.id, req.body, { new: true }).lean();
+      if (!updated) return reply.code(404).send({ error: 'Candidate not found' });
+      return toOut(updated);
     },
   });
 
@@ -111,16 +133,16 @@ const candidateRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'DELETE',
     url: '/candidates/:id',
-    schema: { response: { 200: z.object({ ok: z.boolean() }), 404: z.object({ error: z.string() }) } },
+    schema: {
+      params: z.object({ id: z.string() }),
+      response: { 200: z.object({ ok: z.literal(true) }), 404: ErrorDTO },
+    },
     handler: async (req, reply) => {
-      const { id } = req.params as { id: string };
-      if (!Types.ObjectId.isValid(id)) return reply.code(404).send({ error: 'Not found' });
-      const res = await Candidate.findByIdAndDelete(id);
-      if (!res) return reply.code(404).send({ error: 'Not found' });
-      return { ok: true };
+      const del = await Candidate.findByIdAndDelete(req.params.id).lean();
+      if (!del) return reply.code(404).send({ error: 'Candidate not found' });
+      return { ok: true as const };
     },
   });
 };
 
-export { candidateRoutes };
 export default candidateRoutes;

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Modal from '@/components/ui/Modal';
-import { apiGetCandidate } from '@/features/candidates/api';
+import { getCandidate } from '@/features/candidates/api';
 import { createApplication } from './api';
 import { Search, UserPlus } from 'lucide-react';
 
@@ -22,7 +22,7 @@ export default function AddToPipelineModal({ vacancyId, open, onClose }: Props) 
   const qc = useQueryClient();
   const { data = [], isLoading, isError } = useQuery<Candidate[]>({
     queryKey: ['candidates','for-pipeline'],
-    queryFn: apiGetCandidate as any,
+    queryFn: getCandidate as any,
     enabled: open
   });
 

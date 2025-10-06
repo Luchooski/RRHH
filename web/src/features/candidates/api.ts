@@ -1,39 +1,49 @@
-import { http } from '@/lib/http';
-import type {
-  Candidate,
-  CandidateCreateInput,
-  CandidateUpdateInput,
-  CandidateQuery,
-  CandidateListOutput,
-} from './dto';
+import type { CandidateInput, CandidateList, CandidateOut } from './schemas';
 
-function toQS(p?: Partial<CandidateQuery>) {
-  if (!p) return '';
+const BASE = import.meta.env.VITE_API_URL || '';
+
+async function http<T>(url: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers || {});
+  if (init?.body && !headers.has('Content-Type')) headers.set('Content-Type','application/json');
+
+  const res = await fetch(url, { credentials: 'include', ...init, headers });
+  if (!res.ok) {
+    let msg = 'Request error';
+    try { const j = await res.json(); msg = (j as any)?.error ?? msg; } catch {}
+    throw new Error(msg);
+  }
+  return res.json() as Promise<T>;
+}
+
+export async function listCandidates(params?: { q?: string; page?: number; limit?: number; seniority?: string }) {
   const qs = new URLSearchParams();
-  if (p.sortField) qs.set('sortField', p.sortField);
-  if (p.sortDir)   qs.set('sortDir', p.sortDir);
-  if (p.limit != null) qs.set('limit', String(p.limit));
-  if (p.skip  != null) qs.set('skip',  String(p.skip));
-  const s = qs.toString();
-  return s ? `?${s}` : '';
+  if (params?.q) qs.set('q', params.q);
+  if (params?.page) qs.set('page', String(params.page));
+  if (params?.limit) qs.set('limit', String(params.limit));
+  if (params?.seniority) qs.set('seniority', params.seniority);
+  return http<CandidateList>(`${BASE}/api/v1/candidates${qs.toString() ? `?${qs}` : ''}`);
 }
 
-export async function apiListCandidates(params?: Partial<CandidateQuery>) {
-  return http.get<CandidateListOutput>(`/api/v1/candidates${toQS(params)}`, { auth: true });
+export async function getCandidate(id: string) {
+  return http<CandidateOut>(`${BASE}/api/v1/candidates/${id}`);
 }
 
-export async function apiGetCandidate(id: string) {
-  return http.get<Candidate>(`/api/v1/candidates/${encodeURIComponent(id)}`, { auth: true });
+export async function createCandidate(data: CandidateInput) {
+  return http<CandidateOut>(`${BASE}/api/v1/candidates`, { method: 'POST', body: JSON.stringify(data) });
 }
 
-export async function apiCreateCandidate(input: CandidateCreateInput) {
-  return http.post<Candidate>('/api/v1/candidates', input, { auth: true });
+export async function updateCandidate(id: string, data: CandidateInput) {
+  return http<CandidateOut>(`${BASE}/api/v1/candidates/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 }
 
-export async function apiUpdateCandidate(id: string, input: CandidateUpdateInput) {
-  return http.patch<Candidate>(`/api/v1/candidates/${encodeURIComponent(id)}`, input, { auth: true });
+export async function deleteCandidate(id: string) {
+  return http<{ ok: true }>(`${BASE}/api/v1/candidates/${id}`, { method: 'DELETE' });
 }
 
-export async function apiDeleteCandidate(id: string) {
-  return http.delete<{ ok: boolean }>(`/api/v1/candidates/${encodeURIComponent(id)}`, { auth: true });
+// Enviar candidato a vacante (crea Application)
+export async function sendToVacancy(candidateId: string, vacancyId: string, status: 'sent'|'interview'|'feedback'|'offer'|'hired'|'rejected' = 'sent') {
+  return http<{ ok: true }>(`${BASE}/api/v1/applications`, {
+    method: 'POST',
+    body: JSON.stringify({ candidateId, vacancyId, status }),
+  });
 }

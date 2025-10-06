@@ -1,15 +1,30 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
-import { getVacancy, listApplications, updateApplication } from './api';
+import { getVacancy, listApplications, updateApplication, reorderApplications  } from './api';
 import KanbanBoard from './KanbanBoard';
 import Checklist from './Checklist';
 import AddToPipelineModal from './AddToPipelineModal';
-import { useState } from 'react';
+import { useState , useMemo } from 'react';
+import Notes from './Notes';
+
+type Status = 'sent'|'interview'|'feedback'|'offer'|'hired'|'rejected';
+
+function normalizeApps(data: any): any[] {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.items)) return data.items;
+  return [];
+}
 
 export default function VacancyDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
   const qc = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
+
+  const mReorder = useMutation({
+  mutationFn: (changes: { id: string; status: any; order: number }[]) =>
+    reorderApplications(id, changes),
+  onSuccess: () => qc.invalidateQueries({ queryKey: ['applications', id] })
+  });
 
   const vacQ = useQuery({
     queryKey: ['vacancy', id],
@@ -22,6 +37,15 @@ export default function VacancyDetailPage() {
     queryFn: () => listApplications(id),
     enabled: !!id,
   });
+
+  const boardItems = useMemo(() => {
+  const arr = normalizeApps(appsQ.data);
+  return arr.map((a: any) => ({
+    id: a.id ?? a._id ?? a.appId,
+    candidateName: a.candidateName ?? a.name ?? 'Candidato',
+    status: (a.status ?? 'sent') as Status,
+  }));
+}, [appsQ.data]);
 
   const mMove = useMutation({
     mutationFn: ({ appId, to }: { appId: string; to: any }) =>
@@ -79,14 +103,16 @@ export default function VacancyDetailPage() {
               <div className="h-48 rounded-xl animate-pulse bg-black/5 dark:bg-white/5" />
             ) : (
               <KanbanBoard
-                items={Array.isArray(appsQ.data) ? appsQ.data : []}
+                items={boardItems}
                 onMove={(appId, to) => mMove.mutate({ appId, to })}
+                onReorder={(changes) => mReorder.mutate(changes)}
               />
             )}
           </div>
 
           {/* Checklist (el componente maneja fetch/mutations internamente) */}
           <Checklist vacancyId={id} />
+          <Notes vacancyId={id} />
         </section>
 
         <AddToPipelineModal

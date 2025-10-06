@@ -2,38 +2,48 @@ import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import App from './App';
 import { useAuth } from '../features/auth/auth';
 import LoginPage from '../features/auth/LoginPage';
-//Dashboard
-import DashboardPage from '../features/dashboard/DashboardPage';
-//Candidatos
-import CandidatesPage from '../features/candidates/CandidatePage';
-//Entrevistas
-import InterviewsPage from '../features/interviews/InterviewsPage';
-import CalendarPage from '@/features/interviews/CalendarPage.tsx';
-//subir CV
-import UploadCVPage from '../features/uploads/UploadCVPage';
-//Empleados
-import EmployeesPage from '../features/employees/EmployeesPage';
-//Liquidacioens
-import PayrollPage from '../features/payroll/PayrollPage';
-//Horarios
-import SchedulesPage from '../features/schedules/SchedulesPage';
-//Vacantes
-import VacanciesPage from '../features/vacancies/VacanciesPage.tsx';
-import VacancyPipelinePage from '@/features/pipeline/VacancyPipelinePage';
-import InterviewsAgendaPage from '@/features/calendar/InterviewAgendaPage';
-import VacancyDetailPage from '@/features/vacancies/VacancyDetailPage';
-import VacancyCreatePage from '@/features/vacancies/VacancyCreatePage.tsx';
-import VacancyEditPage from '@/features/vacancies/VacancyEditPage.tsx';
 
-//Reportes
+// Dashboard
+import DashboardPage from '../features/dashboard/DashboardPage';
+
+// Candidatos (NUEVOS imports correctos)
+import CandidatesPage from '@/features/candidates/CandidatePage';
+import CandidateDetailPage from '@/features/candidates/CandidateDetailPage';
+import CandidateCreatePage from '@/features/candidates/CandidateCreatePage';
+import CandidateEditPage from '@/features/candidates/CandidateEditPage';
+
+// Entrevistas
+import InterviewsPage from '../features/interviews/InterviewsPage';
+import CalendarPage from '@/features/interviews/CalendarPage';
+
+// Subir CV
+import UploadCVPage from '../features/uploads/UploadCVPage';
+
+// Empleados
+import EmployeesPage from '../features/employees/EmployeesPage';
+
+// Liquidaciones
+import PayrollPage from '../features/payroll/PayrollPage';
+
+// Horarios
+import SchedulesPage from '../features/schedules/SchedulesPage';
+
+// Vacantes
+import VacanciesPage from '@/features/vacancies/VacanciesPage';
+import VacancyPipelinePage from '@/features/pipeline/VacancyPipelinePage';
+import VacancyDetailPage from '@/features/vacancies/VacancyDetailPage';
+import VacancyCreatePage from '@/features/vacancies/VacancyCreatePage';
+import VacancyEditPage from '@/features/vacancies/VacancyEditPage';
+
+// Reportes
 import ReportsPage from '@/features/reports/ReportsPage';
 
-//Clientes
-import ClientsPage from '../features/clients/ClientsPage.tsx';
+// Clientes
+import ClientsPage from '../features/clients/ClientsPage';
 import ClientCreatePage from '@/features/clients/ClientCreatePage';
 import ClientEditPage from '@/features/clients/ClientEditPage';
 
-//404 No encontrada
+// 404
 import NotFound from '../pages/NotFound';
 
 function PublicLayout() {
@@ -54,23 +64,45 @@ const router = createBrowserRouter([
     element: <ProtectedLayout />,
     children: [
       { index: true, element: <DashboardPage /> },
+
+      // Candidatos — limpio y completo
       { path: 'candidatos', element: <CandidatesPage /> },
+      { path: 'candidatos/nuevo', element: <CandidateCreatePage /> },
+      { path: 'candidatos/nuevos', element: <Navigate to="/candidatos/nuevo" replace /> }, // compatibilidad
+      { path: 'candidatos/:id', element: <CandidateDetailPage /> },
+      { path: 'candidatos/:id/editar', element: <CandidateEditPage /> },
+
+      // Entrevistas / Agenda
       { path: 'entrevistas', element: <InterviewsPage /> },
+      { path: 'agenda', element: <CalendarPage /> },
+
+      // Subir CV
       { path: 'cargar-cv', element: <UploadCVPage /> },
+
+      // Empleados / Liquidaciones / Horarios
       { path: 'empleados', element: <EmployeesPage /> },
       { path: 'liquidaciones', element: <PayrollPage /> },
+      { path: 'horarios', element: <SchedulesPage /> },
+
+      // Clientes
       { path: 'clientes', element: <ClientsPage /> },
       { path: 'clientes/nuevo', element: <ClientCreatePage /> },
       { path: 'clientes/:id', element: <ClientEditPage /> },
+
+      // Vacantes
       { path: 'vacantes', element: <VacanciesPage /> },
       { path: 'vacantes/nueva', element: <VacancyCreatePage /> },
       { path: 'vacantes/:id', element: <VacancyDetailPage /> },
       { path: 'vacantes/:id/editar', element: <VacancyEditPage /> },
       { path: 'vacantes/:id/pipeline', element: <VacancyPipelinePage /> },
-      { path: 'agenda', element: <CalendarPage /> },
+
+      // Reportes
       { path: 'reportes', element: <ReportsPage /> },
-      { path: 'horarios', element: <SchedulesPage /> },
+
+      // Historial (placeholder, si querés una página dedicada)
       { path: 'historial', element: <DashboardPage /> },
+
+      // 404
       { path: '*', element: <NotFound /> },
     ],
   },

@@ -2,16 +2,38 @@ import type { Paginated, VacancyDTO, VacancyListQuery, ApplicationDTO } from './
 
 const BASE = import.meta.env.VITE_API_URL || '';
 
+export async function reorderApplications(
+  vacancyId: string,
+  changes: { id: string; status: 'sent'|'interview'|'feedback'|'offer'|'hired'|'rejected'; order: number }[]
+): Promise<{ ok: true }> {
+  return http(`${BASE}/api/v1/applications/reorder`, {
+    method: 'POST',
+    body: JSON.stringify({ vacancyId, changes })
+  });
+}
+
 export type ChecklistItem = { id: string; label: string; done: boolean; updatedAt: string };
 export type ChecklistList = { items: ChecklistItem[] };
 
-async function http<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
-  const res = await fetch(input, { credentials: 'include', headers: { 'Content-Type':'application/json' }, ...init });
+async function http<T>(input: RequestInfo, init: RequestInit = {}): Promise<T> {
+  const hasBody = !!init.body;
+  const headers = new Headers(init.headers || {});
+  if (hasBody && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const res = await fetch(input, {
+    credentials: 'include',
+    ...init,
+    headers,
+  });
+
   if (!res.ok) {
     let msg = 'Request error';
-    try { const j = await res.json(); msg = j?.error ?? msg; } catch {}
+    try { const j = await res.json(); msg = (j as any)?.error ?? msg; } catch {}
     throw new Error(msg);
   }
+
   return res.json() as Promise<T>;
 }
 
@@ -74,5 +96,25 @@ export async function updateChecklistItem(vacancyId: string, itemId: string, pat
 export async function removeChecklistItem(vacancyId: string, itemId: string): Promise<ChecklistList> {
   return http(`${BASE}/api/v1/vacancies/${vacancyId}/checklist/${itemId}`, {
     method: 'DELETE'
+  });
+}
+// --- Tipos de Notes ---
+export type NoteItem = { id: string; text: string; author?: string; createdAt: string };
+export type NotesList = { items: NoteItem[] };
+
+export async function getNotes(vacancyId: string): Promise<NotesList> {
+  return http(`${BASE}/api/v1/vacancies/${vacancyId}/notes`);
+}
+
+export async function addNote(vacancyId: string, text: string, author?: string): Promise<NotesList> {
+  return http(`${BASE}/api/v1/vacancies/${vacancyId}/notes`, {
+    method: 'POST',
+    body: JSON.stringify({ text, author }),
+  });
+}
+
+export async function removeNote(vacancyId: string, noteId: string): Promise<NotesList> {
+  return http(`${BASE}/api/v1/vacancies/${vacancyId}/notes/${noteId}`, {
+    method: 'DELETE',
   });
 }

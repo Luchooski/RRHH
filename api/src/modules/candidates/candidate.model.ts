@@ -1,30 +1,48 @@
-import mongoose, { Schema, InferSchemaType } from 'mongoose';
+import { Schema, model, type Document } from 'mongoose';
 
-const CandidateSchema = new Schema({
-  name:  { type: String, required: true, index: true },
-  email: { type: String, required: true, index: true },
-  role:  { type: String, required: true, index: true },
-  match: { type: Number, default: 0 },
-  status:{ type: String, default: 'Nuevo' },
-  source: { type: String, enum: ['cv','form','import','manual'], default: 'manual' },
-    notes: { type: String, default: null },
-}, {
-  timestamps: true,
-  versionKey: false,
-  // si querés fijar la coleccion exacta: collection: 'candidates'
-});
+export type Seniority = 'jr' | 'ssr' | 'sr';
 
-CandidateSchema.virtual('id').get(function (this: { _id: mongoose.Types.ObjectId }) {
-  return this._id?.toString();
-});
+export interface CandidateDoc extends Document {
+  name: string;
+  email: string;
+  phone?: string;
+  location?: string;
+  seniority?: Seniority;
+  skills: string[];
+  salaryExpectation?: number;
+  resumeUrl?: string;
+  notes?: string;
+  tags: string[];
+  links: { label?: string; url: string }[];
+  createdAt: Date;
+  updatedAt: Date;
+}
 
-const transform = (_doc: any, ret: any) => {
-  ret.id = ret.id ?? ret._id?.toString();
-  delete ret._id;
-  return ret;
-};
-CandidateSchema.set('toJSON',  { virtuals: true, transform });
-CandidateSchema.set('toObject',{ virtuals: true, transform });
+const LinkSchema = new Schema(
+  {
+    label: { type: String, trim: true },
+    url: { type: String, trim: true },
+  },
+  { _id: false }
+);
 
-export type CandidateDoc = InferSchemaType<typeof CandidateSchema> & { _id: any };
-export const Candidate = mongoose.model('Candidate', CandidateSchema);
+const CandidateSchema = new Schema<CandidateDoc>(
+  {
+    name: { type: String, required: true, trim: true, index: true },
+    email: { type: String, required: true, trim: true, lowercase: true, index: true },
+    phone: { type: String, trim: true },
+    location: { type: String, trim: true },
+    seniority: { type: String, enum: ['jr', 'ssr', 'sr'] },
+    skills: { type: [String], default: [] },
+    salaryExpectation: { type: Number },
+    resumeUrl: { type: String, trim: true },
+    notes: { type: String },
+    tags: { type: [String], default: [] },
+    links: { type: [LinkSchema], default: [] },
+  },
+  { timestamps: true }
+);
+
+CandidateSchema.index({ name: 'text', email: 'text', skills: 'text', tags: 'text' });
+
+export const Candidate = model<CandidateDoc>('Candidate', CandidateSchema);

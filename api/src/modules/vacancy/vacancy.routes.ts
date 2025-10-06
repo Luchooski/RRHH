@@ -274,6 +274,84 @@ const vacancyRoutes: FastifyPluginAsync = async (app) => {
       return mapChecklist(updated);
     },
   });
+  // ---- DTOs para Notes ----
+const NoteOut = z.object({
+  id: z.string(),
+  text: z.string(),
+  author: z.string().optional(),
+  createdAt: z.string(),
+});
+const NotesListOut = z.object({ items: z.array(NoteOut) });
+
+const NoteCreateIn = z.object({
+  text: z.string().min(2),
+  author: z.string().optional(),
+});
+
+const mapNotes = (v: any) => ({
+  items: (v?.notes ?? []).map((n: any) => ({
+    id: String(n._id),
+    text: n.text,
+    author: n.author || undefined,
+    createdAt: new Date(n.createdAt).toISOString(),
+  })),
+});
+
+// ============== SUBRUTAS: NOTAS ==============
+
+// GET /vacancies/:id/notes
+r.route({
+  method: 'GET',
+  url: '/vacancies/:id/notes',
+  schema: {
+    params: z.object({ id: z.string() }),
+    response: { 200: NotesListOut, 404: ErrorDTO },
+  },
+  handler: async (req, reply) => {
+    const v = await Vacancy.findById(req.params.id).lean();
+    if (!v) return reply.code(404).send({ error: 'Vacancy not found' });
+    return mapNotes(v);
+  },
+});
+
+// POST /vacancies/:id/notes
+r.route({
+  method: 'POST',
+  url: '/vacancies/:id/notes',
+  schema: {
+    params: z.object({ id: z.string() }),
+    body: NoteCreateIn,
+    response: { 200: NotesListOut, 404: ErrorDTO },
+  },
+  handler: async (req, reply) => {
+    const updated = await Vacancy.findByIdAndUpdate(
+      req.params.id,
+      { $push: { notes: { text: req.body.text, author: req.body.author, createdAt: new Date() } } },
+      { new: true }
+    ).lean();
+    if (!updated) return reply.code(404).send({ error: 'Vacancy not found' });
+    return mapNotes(updated);
+  },
+});
+
+// DELETE /vacancies/:id/notes/:noteId
+r.route({
+  method: 'DELETE',
+  url: '/vacancies/:id/notes/:noteId',
+  schema: {
+    params: z.object({ id: z.string(), noteId: z.string() }),
+    response: { 200: NotesListOut, 404: ErrorDTO },
+  },
+  handler: async (req, reply) => {
+    const updated = await Vacancy.findByIdAndUpdate(
+      req.params.id,
+      { $pull: { notes: { _id: req.params.noteId as any } } },
+      { new: true }
+    ).lean();
+    if (!updated) return reply.code(404).send({ error: 'Vacancy or note not found' });
+    return mapNotes(updated);
+  },
+});
 };
 
 export default vacancyRoutes;

@@ -9,6 +9,13 @@ export interface ChecklistItem {
   updatedAt: Date;
 }
 
+export interface NoteItem {
+  _id: Types.ObjectId;
+  text: string;
+  author?: string;
+  createdAt: Date;
+}
+
 export interface VacancyDoc extends Document {
   title: string;
   status: VacancyStatus;
@@ -21,8 +28,8 @@ export interface VacancyDoc extends Document {
   salaryMax?: number;
   description?: string;
 
-  // NUEVO
   checklist: ChecklistItem[];
+  notes: NoteItem[];
 
   createdAt: Date;
   updatedAt: Date;
@@ -37,6 +44,15 @@ const ChecklistItemSchema = new Schema<ChecklistItem>(
   { _id: true }
 );
 
+const NoteItemSchema = new Schema<NoteItem>(
+  {
+    text: { type: String, required: true, trim: true },
+    author: { type: String, trim: true },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: true }
+);
+
 const VacancySchema = new Schema<VacancyDoc>(
   {
     title: { type: String, required: true, trim: true },
@@ -44,14 +60,14 @@ const VacancySchema = new Schema<VacancyDoc>(
     companyId: { type: Schema.Types.ObjectId, ref: 'Company' },
     companyName: { type: String, trim: true },
     location: { type: String, trim: true },
-    seniority: { type: String, enum: ['jr', 'ssr', 'sr'], required: false },
-    employmentType: { type: String, enum: ['fulltime', 'parttime', 'contract'], required: false },
+    seniority: { type: String, enum: ['jr', 'ssr', 'sr'] },
+    employmentType: { type: String, enum: ['fulltime', 'parttime', 'contract'] },
     salaryMin: { type: Number },
     salaryMax: { type: Number },
     description: { type: String },
 
-    // NUEVO
     checklist: { type: [ChecklistItemSchema], default: [] },
+    notes: { type: [NoteItemSchema], default: [] },
   },
   { timestamps: true }
 );
