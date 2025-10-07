@@ -5,12 +5,14 @@ import { Send, Pencil, Trash2, ExternalLink } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import SendToVacancyModal from './SendToVacancyModal';
 import { useState } from 'react';
+import ScheduleInterviewModal from '@/features/interviews/ScheduleInterviewModal';
 
 export default function CandidateDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
   const nav = useNavigate();
   const qc = useQueryClient();
   const [sendOpen, setSendOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   const { data: c, isLoading, isError } = useQuery({
     queryKey: ['candidate', id],
@@ -41,7 +43,13 @@ export default function CandidateDetailPage() {
               <p className="text-sm text-[--color-muted]">{c.email} · {c.location ?? '—'} · {(c.seniority ?? '').toUpperCase() || '—'}</p>
             </div>
             <div className="flex gap-2">
-              <button className="btn btn-primary" onClick={()=>setSendOpen(true)}><Send className="size-4 mr-2" /> Enviar a vacante</button>
+              <button className="btn btn-primary" onClick={()=>setScheduleOpen(true)}>
+                Programar entrevista
+              </button>
+
+              <button className="btn btn-primary" onClick={()=>setSendOpen(true)}>
+                <Send className="size-4 mr-2" /> Enviar a vacante
+              </button>
               <Link to={`/candidatos/${c.id}/editar`} className="btn"><Pencil className="size-4 mr-2" /> Editar</Link>
               <button className="btn" onClick={()=>mDel.mutate(c.id)}><Trash2 className="size-4 mr-2" /> Borrar</button>
             </div>
@@ -78,6 +86,15 @@ export default function CandidateDetailPage() {
             <h2 className="text-base font-semibold mb-2">Notas</h2>
             <p className="text-sm whitespace-pre-wrap">{c.notes || '—'}</p>
           </div>
+          {/* Enviar a vacante */}
+      <Modal open={sendOpen} onClose={()=>setSendOpen(false)}>
+        <SendToVacancyModal candidateId={id} onClose={()=>setSendOpen(false)} />
+      </Modal>
+
+      {/* NUEVO: Programar entrevista */}
+      <Modal open={scheduleOpen} onClose={()=>setScheduleOpen(false)}>
+        <ScheduleInterviewModal candidateId={id} onClose={()=>setScheduleOpen(false)} />
+      </Modal>
         </section>
       </div>
 

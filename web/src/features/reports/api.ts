@@ -1,44 +1,44 @@
-type Range = { from?: string; to?: string };
-
 const BASE = import.meta.env.VITE_API_URL || '';
 
-async function http<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
-  const res = await fetch(input, { credentials: 'include', headers: { 'Content-Type': 'application/json' }, ...init });
+async function http<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, { credentials: 'include', headers: { 'Content-Type':'application/json' }, ...init });
   if (!res.ok) {
     let msg = 'Request error';
-    try { const j = await res.json(); msg = j?.error ?? msg; } catch {}
+    try { const j = await res.json(); msg = (j as any)?.error ?? msg; } catch {}
     throw new Error(msg);
   }
   return res.json() as Promise<T>;
 }
 
-// Conversion
-export async function getConversion(range: Range = {}) {
-  const p = new URLSearchParams();
-  if (range.from) p.set('from', range.from);
-  if (range.to)   p.set('to', range.to);
-  return http<{ sent: number; interview: number; hired: number; period: Range }>(`${BASE}/api/v1/reports/conversion?${p.toString()}`);
+export type ConversionReport = { sent: number; interview: number; hired: number };
+export type TimeToCloseReport = { avgDays: number; series?: Array<{ week: string; avgDays: number }> };
+
+export function getConversion(params?: { from?: string; to?: string }) {
+  const qs = new URLSearchParams();
+  if (params?.from) qs.set('from', params.from);
+  if (params?.to)   qs.set('to', params.to);
+  const url = `${BASE}/api/v1/reports/conversion${qs.toString() ? `?${qs}` : ''}`;
+  return http<ConversionReport>(url);
 }
 
-// Time to close
-export async function getTimeToClose(range: Range = {}) {
-  const p = new URLSearchParams();
-  if (range.from) p.set('from', range.from);
-  if (range.to)   p.set('to', range.to);
-  return http<{ avgDays: number; count: number; period: Range }>(`${BASE}/api/v1/reports/ttc?${p.toString()}`);
+export function getTimeToClose(params?: { from?: string; to?: string }) {
+  const qs = new URLSearchParams();
+  if (params?.from) qs.set('from', params.from);
+  if (params?.to)   qs.set('to', params.to);
+  const url = `${BASE}/api/v1/reports/time-to-close${qs.toString() ? `?${qs}` : ''}`;
+  return http<TimeToCloseReport>(url);
 }
 
-// Export helpers
-export function exportCSV(range: Range = {}) {
-  const p = new URLSearchParams();
-  if (range.from) p.set('from', range.from);
-  if (range.to)   p.set('to', range.to);
-  window.open(`${BASE}/api/v1/reports/export.csv?${p.toString()}`, '_blank');
-}
-
-export function exportPDF(range: Range = {}) {
-  const p = new URLSearchParams();
-  if (range.from) p.set('from', range.from);
-  if (range.to)   p.set('to', range.to);
-  window.open(`${BASE}/api/v1/reports/export.pdf?${p.toString()}`, '_blank');
+/** URLs directas para exportar (descarga en nueva pestaña) */
+export function exportUrls(params?: { from?: string; to?: string }) {
+  const qs = new URLSearchParams();
+  if (params?.from) qs.set('from', params.from);
+  if (params?.to)   qs.set('to', params.to);
+  const q = qs.toString() ? `?${qs}` : '';
+  return {
+    conversionCSV: `${BASE}/api/v1/reports/conversion.csv${q}`,
+    conversionPDF: `${BASE}/api/v1/reports/conversion.pdf${q}`,
+    ttcCSV:        `${BASE}/api/v1/reports/time-to-close.csv${q}`,
+    ttcPDF:        `${BASE}/api/v1/reports/time-to-close.pdf${q}`,
+  };
 }

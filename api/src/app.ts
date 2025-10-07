@@ -21,7 +21,7 @@ import interviewRoutes from './modules/interview/interview.routes.js';
 import { clientRoutes } from './modules/client/client.routes.js';
 import  vacancyRoutes from './modules/vacancy/vacancy.routes.js';
 import { applicationRoutes } from './modules/application/application.routes.js';
-import { reportsRoutes } from './modules/reports/reports.routes.js';
+import  reportsRoutes from './modules/reports/reports.routes.js';
 
 
 export function buildApp() {
@@ -72,7 +72,7 @@ export function buildApp() {
   app.register(clientRoutes,    { prefix: '/api/v1' });
   app.register(vacancyRoutes,   { prefix: '/api/v1' });
   app.register(applicationRoutes, { prefix: '/api/v1' });
-  app.register(reportsRoutes, { prefix: '/api/v1' });
+  app.register(reportsRoutes, { prefix: '/api/v1/reports' });
   app.register(interviewRoutes, { prefix: '/api/v1' });
 
 

@@ -5,7 +5,7 @@ import HistoryDrawer from '../features/history/HistoryDrawer';
 import SidebarItem from '../components/SidebarItem';
 import { Home,BarChart3, Users, CalendarClock,CalendarDays, Upload, IdCard, Receipt, Briefcase, Building2, Clock3, History } from 'lucide-react';
 import SkipLink from '../components/skipLink';
-import Breadcrumbs from '../components/Breadcrumbs';
+import Breadcrumbs from '@/components/ui/Breadcrumbs';
 
 const NAV = [
   { to: '/',             label: 'Dashboard',     icon: <Home size={18}/> },

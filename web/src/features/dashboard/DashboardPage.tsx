@@ -7,7 +7,7 @@ import {
   Send, MessageSquare, UserCheck, Timer, BarChart3, CalendarClock
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { format, parseISO, isAfter, startOfWeek, endOfWeek } from 'date-fns';
+import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 import { getConversion, getTimeToClose } from '@/features/reports/api';
@@ -27,17 +27,19 @@ export default function DashboardPage() {
   const to   = endOfWeek(new Date(),   { weekStartsOn: 1 }).toISOString();
 
   // Entrevistas (rango semanal)
-  const interviewsQ = useQuery({
-    queryKey: ['interviews:dashboard', { from, to }],
-    queryFn: () => listInterviews({ from, to }),
+  const { data: intRes, isLoading: intLoading } = useQuery<{
+    items: InterviewDTO[]; total: number; page: number; pageSize: number;
+  }>({
+    queryKey: ['interviews', 'range', from, to],
+    queryFn: () => listInterviews({ from, to, limit: 50 }),
   });
-  const interviews: InterviewDTO[] = interviewsQ.data?.items ?? [];
-  const intLoading = interviewsQ.isLoading;
+
+  const interviews: InterviewDTO[] = intRes?.items ?? [];
 
   const upcoming = useMemo(() => {
     const now = new Date();
     return interviews
-      .filter(i => isAfter(parseISO(i.start), now))
+      .filter(i => new Date(i.start) > now)
       .sort((a, b) => a.start.localeCompare(b.start))
       .slice(0, 6);
   }, [interviews]);
@@ -78,10 +80,10 @@ export default function DashboardPage() {
               <Link to="/vacantes/nueva" className="btn">
                 <Briefcase className="size-4 mr-2" /> Nueva vacante
               </Link>
-              <Link to="/clientes" className="btn">
+              <Link to="/clientes/nuevo" className="btn">
                 <Users2 className="size-4 mr-2" /> Nuevo cliente
               </Link>
-              <Link to="/candidatos" className="btn">
+              <Link to="/candidatos/nuevo" className="btn">
                 <UserRound className="size-4 mr-2" /> Nuevo candidato
               </Link>
               <Link to="/agenda" className="btn btn-primary">
@@ -121,7 +123,7 @@ export default function DashboardPage() {
                   icon={<BarChart3 className="size-5" />}
                   title="Sin datos de conversión"
                   description="Registra aplicaciones y movimientos del pipeline para ver este gráfico."
-                  action={<Link to="/vacantes" className="btn btn-primary">Crear vacante</Link>}
+                  action={<Link to="/vacantes/nueva" className="btn btn-primary">Crear vacante</Link>}
                   className="h-full"
                 />
               )}
@@ -142,7 +144,7 @@ export default function DashboardPage() {
             ) : upcoming.length ? (
               <ul className="space-y-2">
                 {upcoming.map(i => (
-                  <li key={i.id} className="flex items-center justify-between rounded-lg border px-3 py-2 hover:bg-black/5 dark:hover:bg:white/5">
+                  <li key={i.id} className="flex items-center justify-between rounded-lg border px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5">
                     <div className="min-w-0">
                       <p className="font-medium truncate">{i.title}</p>
                       <p className="text-xs text-[--color-muted]">
