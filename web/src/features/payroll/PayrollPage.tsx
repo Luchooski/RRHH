@@ -1,167 +1,129 @@
 import { useMemo, useState } from 'react';
-import { Toolbar } from '@/components/ui/Toolbar';
-import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { SimpleTable, TR, TD } from '@/components/ui/Table';
-import { Select } from '@/components/ui/Select';
-import { PeriodPicker } from './PeriodPicker';
-import { currentPeriod, downloadCsv } from './api';
-import { useApprovePayroll, useDeletePayroll, usePayrolls } from './hooks';
-import type { Payroll } from './dto';
+import { useListPayrolls, useGetPayroll, useCreatePayroll, useUpdatePayroll, useUpdateStatus } from './hooks';
+import type { Payroll, ListOut } from './dto';
+import PayrollDetailDrawer from './PayrollDetailDrawer';
+import PayrollFormModal from './PayrollFormModal';
+import { StatusBadge } from './StatusBadge';
+import { toCsv, downloadCsv } from './csv';
 
-function pesos(n: number) {
-  if (!Number.isFinite(n)) return '$ 0';
-  return n.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
-}
-function fmtDate(s: string) {
-  const d = new Date(s); if (Number.isNaN(+d)) return '—';
-  return d.toLocaleDateString('es-AR');
-}
+type Tab = 'Todos'|'pendiente'|'aprobada'|'pagada'|'anulada';
 
 export default function PayrollPage() {
-  const [period, setPeriod] = useState(currentPeriod());
-  const [status, setStatus] = useState<'Borrador'|'Aprobado'|undefined>(undefined);
-  const [limit, setLimit] = useState(20);
-  const [skip, setSkip] = useState(0);
+  const [query, setQuery] = useState<{ q?:string; period?:string; status?:Tab; limit:number; skip:number }>({ limit:20, skip:0 });
+  const [active, setActive] = useState<Tab>('Todos');
+  const [selectedId, setSelectedId] = useState<string | undefined>();
+  const [formOpen, setFormOpen] = useState(false);
+  const [editRow, setEditRow] = useState<Payroll | undefined>();
 
-  const { data, isFetching, isLoading, error } =
-    usePayrolls({ period, status, limit, skip });
-
-  const approve = useApprovePayroll();
-  const del = useDeletePayroll();
-
-  const items = data?.items ?? [];
+  const { data, isLoading } = useListPayrolls({ ...query, status: active==='Todos'? undefined : active });
+  const detail = useGetPayroll(selectedId);
+  const createMut = useCreatePayroll();
+  const updateMut = useUpdatePayroll();
+  const statusMut = useUpdateStatus();
 
   const kpis = useMemo(() => {
-    const total = data?.total ?? 0;
-    const aprobados = items.filter(i => i.status === 'Aprobado').length;
-    const borradores = items.filter(i => i.status === 'Borrador').length;
-    const avgBase = items.length
-      ? Math.round(items.reduce((a, b) => a + (b.baseSalary || 0), 0) / items.length)
-      : 0;
-    return { total, aprobados, borradores, avgBase };
-  }, [items, data?.total]);
+    const items: Payroll[] = data?.items ?? [];
+    return {
+      count: items.length,
+      gross: items.reduce((a,b)=>a + b.grossTotal, 0),
+      net: items.reduce((a,b)=>a + b.netTotal, 0),
+    };
+  }, [data]);
 
-  const onApprove = async (id: string) => {
-    await approve.mutateAsync(id);
-  };
-  const onDelete = async (id: string) => {
-    if (!confirm('¿Eliminar liquidación?')) return;
-    await del.mutateAsync(id);
+  const exportar = () => {
+    const csv = toCsv((data as ListOut|undefined)?.items ?? []);
+    downloadCsv(`liquidaciones_${new Date().toISOString().slice(0,10)}.csv`, csv);
   };
 
-  const next = () => setSkip(s => s + limit);
-  const prev = () => setSkip(s => Math.max(0, s - limit));
+  const onCreate = (payload: any) => {
+    createMut.mutate(payload, { onSuccess: () => setFormOpen(false) });
+  };
+  const onEdit = (payload: any) => {
+    if (!editRow) return;
+    updateMut.mutate({ id: editRow.id, payload }, { onSuccess: () => { setFormOpen(false); setEditRow(undefined); } });
+  };
 
   return (
-    <div className="container space-y-4" role="main" aria-label="Sección Liquidaciones">
-      <Toolbar
-        title="Liquidaciones"
-        right={
-          <div className="flex items-center gap-2">
-            <Button onClick={() => downloadCsv({ period, status })}>
-              Exportar CSV
-            </Button>
-            <span className="text-sm text-[--color-muted]">
-              {isFetching ? 'Actualizando…' : null}
-            </span>
-          </div>
-        }
+    <div className="p-6 space-y-6">
+      <div className="flex items-center gap-3">
+        <h1 className="text-2xl font-bold">Liquidaciones</h1>
+        <button className="ml-auto border rounded-lg px-3 py-2" onClick={()=>{ setEditRow(undefined); setFormOpen(true); }}>Nueva</button>
+        <button className="border rounded-lg px-3 py-2" onClick={exportar}>Exportar CSV</button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        <Kpi title="Cantidad" value={String(kpis.count)} />
+        <Kpi title="Bruto total" value={kpis.gross.toLocaleString()} />
+        <Kpi title="Neto total" value={kpis.net.toLocaleString()} />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input className="border rounded-lg px-3 py-2" placeholder="Buscar texto"
+          onChange={(e)=>setQuery(q=>({ ...q, q:e.target.value, skip:0 }))} />
+        <input className="border rounded-lg px-3 py-2" placeholder="Período YYYY-MM"
+          onChange={(e)=>setQuery(q=>({ ...q, period:e.target.value, skip:0 }))} />
+      </div>
+
+      <div className="flex gap-2">
+        {(['Todos','pendiente','aprobada','pagada','anulada'] as Tab[]).map(s => (
+          <button key={s}
+            className={`px-3 py-2 rounded-full border ${active===s? 'bg-gray-900 text-white':'bg-white'}`}
+            onClick={() => setActive(s)}>{s}</button>
+        ))}
+      </div>
+
+      <div className="rounded-2xl border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <Th>Empleado</Th><Th>Período</Th><Th>Estado</Th>
+              <Th className="text-right">Bruto</Th><Th className="text-right">Deducciones</Th><Th className="text-right">Neto</Th>
+              <Th>Acciones</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading && <tr><td colSpan={7} className="p-6 text-center">Cargando…</td></tr>}
+            {!isLoading && (data?.items ?? []).map(row => (
+              <tr key={row.id} className="border-t hover:bg-gray-50">
+                <Td>{row.employeeName}</Td>
+                <Td>{row.period}</Td>
+                <Td><StatusBadge status={row.status} /></Td>
+                <Td className="text-right">{row.grossTotal.toLocaleString()}</Td>
+                <Td className="text-right">{row.deductionsTotal.toLocaleString()}</Td>
+                <Td className="text-right font-medium">{row.netTotal.toLocaleString()}</Td>
+                <Td className="space-x-2">
+                  <button className="underline" onClick={()=>setSelectedId(row.id)}>Ver</button>
+                  <button className="underline" onClick={()=>{ setEditRow(row); setFormOpen(true); }}>Editar</button>
+                  {row.status !== 'aprobada' && <button className="underline" onClick={()=>statusMut.mutate({ id: row.id, status: 'aprobada' })}>Aprobar</button>}
+                  {row.status !== 'pagada' && <button className="underline" onClick={()=>statusMut.mutate({ id: row.id, status: 'pagada' })}>Marcar pagada</button>}
+                </Td>
+              </tr>
+            ))}
+            {!isLoading && !(data?.items ?? []).length && (
+              <tr><td colSpan={7} className="p-6 text-center">Sin resultados</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <PayrollDetailDrawer open={!!selectedId} onClose={()=>setSelectedId(undefined)} data={detail.data} />
+      <PayrollFormModal
+        open={formOpen}
+        onClose={()=>{ setFormOpen(false); setEditRow(undefined); }}
+        initial={editRow}
+        onSubmit={editRow ? onEdit : onCreate}
       />
+    </div>
+  );
+}
 
-      {/* Filtros / KPIs */}
-      <Card>
-        <CardBody className="grid gap-3 md:grid-cols-4">
-          <PeriodPicker value={period} onChange={(e) => { setPeriod((e.target as HTMLInputElement).value); setSkip(0); }} />
-          <div>
-            <label className="block text-xs text-[--color-muted] mb-1">Estado</label>
-            <Select
-              value={status ?? ''}
-              onChange={(e) => { const v = e.target.value as 'Borrador'|'Aprobado'|''; setStatus(v || undefined); setSkip(0); }}
-            >
-              <option value="">Todos</option>
-              <option value="Borrador">Borrador</option>
-              <option value="Aprobado">Aprobado</option>
-            </Select>
-          </div>
-          <div className="rounded-xl border border-[--color-border] bg-[--color-card] p-4">
-            <div className="text-xs text-[--color-muted]">Total</div>
-            <div className="mt-1 text-2xl font-bold">{kpis.total}</div>
-          </div>
-          <div className="rounded-xl border border-[--color-border] bg-[--color-card] p-4">
-            <div className="text-xs text-[--color-muted]">Sueldo base prom.</div>
-            <div className="mt-1 text-2xl font-bold">{pesos(kpis.avgBase)}</div>
-          </div>
-        </CardBody>
-      </Card>
-
-      {/* Tabla */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Listado</CardTitle>
-        </CardHeader>
-        <CardBody>
-          {error ? (
-            <div className="p-4 text-sm text-red-600 dark:text-red-400">
-              {(error as any)?.message ?? 'Error al cargar liquidaciones.'}
-            </div>
-          ) : isLoading ? (
-            <div className="p-6 text-center text-sm text-[--color-muted]">Cargando…</div>
-          ) : items.length === 0 ? (
-            <div className="p-6 text-center text-sm text-[--color-muted]">
-              No hay liquidaciones para el período seleccionado.
-            </div>
-          ) : (
-            <>
-              <SimpleTable head={['Empleado','Período','Sueldo base','Bono','Horas ext.','Estado','Creado','Acciones']}>
-                {items.map((p) => (
-                  <TR key={p.id}>
-                    <TD className="font-semibold">{p.employeeName}</TD>
-                    <TD>{p.period}</TD>
-                    <TD>{pesos(p.baseSalary)}</TD>
-                    <TD>{pesos(p.bonuses ?? 0)}</TD>
-                    <TD>{p.overtimeHours ?? 0}</TD>
-                    <TD>
-                      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold
-                        ${p.status === 'Aprobado'
-                          ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-900/50'
-                          : 'bg-amber-100 text-amber-700 ring-1 ring-amber-300 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-900/50'}`}>
-                        {p.status}
-                      </span>
-                    </TD>
-                    <TD className="text-[--color-muted]">{fmtDate(p.createdAt)}</TD>
-                    <TD className="space-x-2">
-                      {p.status === 'Borrador' && (
-                        <Button variant="primary" onClick={() => onApprove(p.id)}>
-                          Aprobar
-                        </Button>
-                      )}
-                      <Button variant="danger" onClick={() => onDelete(p.id)}>
-                        Eliminar
-                      </Button>
-                    </TD>
-                  </TR>
-                ))}
-              </SimpleTable>
-
-              <div className="mt-3 flex items-center justify-end gap-2">
-                <Button variant="ghost" disabled={skip === 0} onClick={prev}>← Anterior</Button>
-                <Button variant="ghost" onClick={next}>Siguiente →</Button>
-                <Select
-                  value={String(limit)}
-                  onChange={(e) => { const v = Number(e.target.value); setLimit(v); setSkip(0); }}
-                  className="w-[120px]"
-                  aria-label="Resultados por página"
-                >
-                  <option value="10">10/pág</option>
-                  <option value="20">20/pág</option>
-                  <option value="50">50/pág</option>
-                </Select>
-              </div>
-            </>
-          )}
-        </CardBody>
-      </Card>
+function Th({ children, className = '' }: any) { return <th className={`text-left p-3 ${className}`}>{children}</th>; }
+function Td({ children, className = '' }: any) { return <td className={`p-3 ${className}`}>{children}</td>; }
+function Kpi({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="rounded-2xl p-4 shadow-sm border">
+      <div className="text-xs text-gray-500">{title}</div>
+      <div className="text-lg font-semibold">{value}</div>
     </div>
   );
 }

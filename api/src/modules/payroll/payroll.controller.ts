@@ -1,355 +1,41 @@
-import { FastifyReply, FastifyRequest } from 'fastify';
-import {
-  PayrollInputDTO,
-  PayrollDTO,
-  ListQueryDTO,
-  IdParamDTO,
-  PayrollUpdateDTO,
-  BulkCreateDTO,
-  ExportQueryDTO
-} from './payroll.dto.js';
-import {
-  createPayroll,
-  listPayrolls,
-  approvePayroll,
-  removePayroll,
-  getById,
-  updateById,
-  bulkCreate
-} from './payroll.service.js';
-import { ok } from '../../utils/http.js';
-import { Payroll, type PayrollDoc } from './payroll.model.js';
-import { isValidObjectId } from 'mongoose';
+import { Request, Response, NextFunction } from 'express';
+import { PayrollCreateSchema, PayrollOutputSchema, PayrollQuerySchema, PayrollStatusSchema } from './payroll.dto.js';
+import * as Service from './payroll.service.js';
 
-import { format } from '@fast-csv/format';
-import { computeDerived } from './payroll.calc.js';
-import { PassThrough } from 'stream';
+const mapId = (d: any) => ({ ...d, id: d._id?.toString?.() ?? d.id });
 
-// ✅ Resultado de .lean() con virtuals: incluye id:string
-type LeanPayroll = Omit<PayrollDoc, '_id'> & {
-  id: string;
-  _id?: any;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-/** Crear */
-export async function postCreate(req: FastifyRequest, reply: FastifyReply) {
-  const parsed = PayrollInputDTO.safeParse(req.body);
-  if (!parsed.success) {
-    return reply
-      .status(400)
-      .send({ error: { code: 'ValidationError', message: 'Invalid body', details: parsed.error.issues } });
-  }
-  const created = await createPayroll({ ...parsed.data, status: 'Borrador' } as any);
-  const out = PayrollDTO.parse({
-    ...created.toObject(),
-    id: String(created._id),
-    createdAt: created.createdAt?.toISOString?.() ?? new Date().toISOString(),
-    updatedAt: created.updatedAt?.toISOString?.() ?? new Date().toISOString()
-  });
-  return reply.status(201).send(ok(out));
-}
-
-/** Listar */
-export async function getList(req: FastifyRequest, reply: FastifyReply) {
-  const parsed = ListQueryDTO.safeParse(req.query);
-  if (!parsed.success) {
-    return reply.status(400).send({
-      error: { code: 'BAD_REQUEST', message: 'Invalid query', details: parsed.error.flatten() },
-    });
-  }
-  const { period, employee, status, limit = 20, skip = 0 } = parsed.data;
-
-  const filter: Record<string, any> = {};
-  if (period) filter.period = period;
-  if (employee) filter.employeeId = employee;
-  if (status) filter.status = status;
-
-  const [items, total] = await Promise.all([
-    Payroll.find(filter)
-      .sort({ period: -1, createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean<LeanPayroll>({ virtuals: true }),
-    Payroll.countDocuments(filter),
-  ]);
-
-  return reply.send({ items, total });
-}
-
-/** Aprobar */
-export async function patchApprove(
-  req: FastifyRequest<{ Params: { id: string } }>,
-  reply: FastifyReply
-) {
-  const { id } = req.params;
-
-  // 1) Validación fuerte del id
-  if (!isValidObjectId(id)) {
-    return reply.status(400).send({
-      error: { code: 'ValidationError', message: 'Invalid ObjectId' }
-    });
-  }
-
+export async function list(req: Request, res: Response, next: NextFunction) {
   try {
-    // 2) Update a prueba de CastError
-    const res = await Payroll.updateOne(
-      { _id: id },
-      { $set: { status: 'Aprobado', updatedAt: new Date() } }
-    );
-
-    // 3) No encontrado
-    if (!res.matchedCount) {
-      return reply.status(404).send({
-        error: { code: 'NotFound', message: 'Liquidación no encontrada' }
-      });
-    }
-
-    // 4) OK
-    return reply.send({ data: { id, status: 'Aprobado' } });
-  } catch (e: any) {
-    // Log útil para depurar si algo raro pasa
-    req.log.error({ err: e }, 'approve error');
-    return reply.status(500).send({
-      error: { code: 'InternalError', message: 'Unexpected error approving payroll' }
-    });
-  }
+    const q = PayrollQuerySchema.parse(req.query);
+    const data = await Service.listPayrolls(q);
+    const items = data.items.map(mapId).map(i => PayrollOutputSchema.parse({
+      ...i, id: i._id?.toString?.() ?? i.id
+    }));
+    res.json({ items, total: data.total, limit: q.limit, skip: q.skip });
+  } catch (err) { next(err); }
 }
 
-
-/** Eliminar */
-export async function delRemove(
-  req: FastifyRequest<{ Params: { id: string } }>,
-  reply: FastifyReply
-) {
-  const { id } = req.params;
-  await removePayroll(id);
-  return reply.status(204).send();
+export async function getById(req: Request, res: Response, next: NextFunction) {
+  try {
+    const doc = await Service.getById(req.params.id);
+    if (!doc) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Liquidación no encontrada' } });
+    res.json(PayrollOutputSchema.parse(mapId(doc)));
+  } catch (err) { next(err); }
 }
 
-/** Obtener por ID */
-export async function getByIdCtrl(
-  req: FastifyRequest<{ Params: { id: string } }>,
-  reply: FastifyReply
-) {
-  const p = IdParamDTO.safeParse(req.params);
-  if (!p.success) {
-    return reply.status(400).send({ error: { code: 'ValidationError', message: 'Invalid id', details: p.error.issues } });
-  }
-  const doc = await getById(p.data.id);
-  if (!doc) {
-    return reply.status(404).send({ error: { code: 'NotFound', message: 'Liquidación no encontrada' } });
-  }
-  return reply.send(
-    ok(
-      PayrollDTO.parse({
-        ...doc,
-        id: String(doc._id),
-        createdAt: doc.createdAt?.toISOString?.() ?? '',
-        updatedAt: doc.updatedAt?.toISOString?.() ?? ''
-      })
-    )
-  );
+export async function create(req: Request, res: Response, next: NextFunction) {
+  try {
+    const input = PayrollCreateSchema.parse(req.body);
+    const created = await Service.createPayroll(input);
+    res.status(201).json(PayrollOutputSchema.parse(mapId(created)));
+  } catch (err) { next(err); }
 }
 
-/** Actualizar por ID (PUT) */
-export async function putUpdateCtrl(
-  req: FastifyRequest<{ Params: { id: string } }>,
-  reply: FastifyReply
-) {
-  const p = IdParamDTO.safeParse(req.params);
-  if (!p.success) {
-    return reply.status(400).send({ error: { code: 'ValidationError', message: 'Invalid id', details: p.error.issues } });
-  }
-  const body = PayrollUpdateDTO.safeParse(req.body);
-  if (!body.success) {
-    return reply.status(400).send({ error: { code: 'ValidationError', message: 'Invalid body', details: body.error.issues } });
-  }
-  const updated = await updateById(p.data.id, body.data as any);
-  if (!updated) {
-    return reply.status(404).send({ error: { code: 'NotFound', message: 'Liquidación no encontrada' } });
-  }
-  return reply.send(
-    ok(
-      PayrollDTO.parse({
-        ...updated,
-        id: String(updated._id),
-        createdAt: updated.createdAt?.toISOString?.() ?? '',
-        updatedAt: updated.updatedAt?.toISOString?.() ?? ''
-      })
-    )
-  );
-}
-
-/** Bulk create */
-export async function postBulkCreateCtrl(req: FastifyRequest, reply: FastifyReply) {
-  const body = BulkCreateDTO.safeParse(req.body);
-  if (!body.success) {
-    return reply.status(400).send({ error: { code: 'ValidationError', message: 'Invalid body', details: body.error.issues } });
-  }
-  const count = await bulkCreate(body.data);
-  return reply.status(201).send(ok({ created: count }));
-}
-
-/** Export CSV */
-export async function getExportCsvCtrl(req: FastifyRequest, reply: FastifyReply) {
-  const parsed = ExportQueryDTO.safeParse(req.query);
-  if (!parsed.success) {
-    return reply.status(400).send({
-      error: { code: 'BAD_REQUEST', message: 'Invalid query', details: parsed.error.flatten() },
-    });
-  }
-  const { period, employee, status, limit, skip } = parsed.data;
-
-  const filter: Record<string, any> = {};
-  if (period) filter.period = period;
-  if (employee) filter.employeeId = employee;
-  if (status) filter.status = status;
-
-  reply.header('Content-Type', 'text/csv; charset=utf-8');
-  reply.header(
-    'Content-Disposition',
-    `attachment; filename="liquidaciones${period ? '_' + period : ''}.csv"`
-  );
-
-  // ── Helpers ES ────────────────────────────────────────────────────────────────
-  const fmtDateES = (x: any) => {
-    if (!x) return '';
-    const d = new Date(x);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-  };
-  const nES = (v: any, opts?: Intl.NumberFormatOptions) =>
-    (typeof v === 'number' ? v : Number(v ?? 0)).toLocaleString('es-AR', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-      ...opts,
-    });
-  const intES = (v: any) => Math.round(Number(v ?? 0)).toLocaleString('es-AR');
-
-  // ── Stream CSV (CORS OK, Excel-friendly) ─────────────────────────────────────
-  const pass = new PassThrough();
-  reply.send(pass);
-  // BOM + directiva sep=; para Excel español
-  pass.write('\uFEFFsep=;\r\n');
-
-  const csv = format({
-    headers: true,
-    delimiter: ';',
-    rowDelimiter: '\r\n',
-    quoteColumns: true, // cita textos/fechas
-  });
-  csv.pipe(pass);
-
-  const q = Payroll.find(filter)
-    .sort({ period: -1, createdAt: -1 })
-    .lean<LeanPayroll>({ virtuals: true });
-  if (typeof skip === 'number') q.skip(skip);
-  if (typeof limit === 'number') q.limit(limit);
-
-  const cursor = q.cursor(); // AsyncIterable<LeanPayroll>
-  for await (const doc of cursor) {
-    const d = computeDerived({
-      baseSalary: doc.baseSalary,
-      bonuses: doc.bonuses,
-      overtimeHours: doc.overtimeHours,
-      overtimeRate: doc.overtimeRate,
-      deductions: doc.deductions,
-      taxRate: doc.taxRate,
-      contributionsRate: doc.contributionsRate,
-      concepts: (doc.concepts ?? []).map((c: any) => ({
-        id: c.id, name: c.name, type: c.type, mode: c.mode, value: c.value,
-      })),
-    });
-
-    csv.write({
-      'ID': doc._id,
-      'Legajo': doc.employeeId,
-      'Empleado': doc.employeeName,
-      'Periodo (AAAA-MM)': doc.period,
-      'Sueldo base': nES(doc.baseSalary),
-      'Bonos': nES(doc.bonuses ?? 0),
-      'Horas extra': intES(doc.overtimeHours ?? 0),
-      'Valor hora extra': nES(doc.overtimeRate ?? 0),
-      'Monto horas extra': nES(d.overtimeAmount),
-      'Deducciones manuales': nES(doc.deductions ?? 0),
-      'Impuestos (%)': nES(doc.taxRate ?? 0, { minimumFractionDigits: 0, maximumFractionDigits: 2 }),
-      'Aportes (%)': nES(doc.contributionsRate ?? 0, { minimumFractionDigits: 0, maximumFractionDigits: 2 }),
-      'Bruto': nES(d.gross),
-      'No remunerativos': nES(d.nonRemuneratives),
-      'Impuestos (monto)': nES(d.taxes),
-      'Aportes (monto)': nES(d.contributions),
-      'Deducciones por conceptos': nES(d.conceptsDeductions),
-      'Neto': nES(d.net),
-      'Estado': doc.status,
-      'Creado': fmtDateES(doc.createdAt),
-      'Actualizado': fmtDateES(doc.updatedAt),
-    });
-  }
-
-  csv.end();
-}
-
-/** ====== OPCIONAL: endpoints por employeeId + period ====== */
-
-export async function getByEmployeeCtrl(
-  req: FastifyRequest<{ Params: { employeeId: string }; Querystring: { period?: string } }>,
-  reply: FastifyReply
-) {
-  const { employeeId } = req.params;
-  const { period } = req.query;
-  if (!period) {
-    return reply.status(400).send({ error: { code: 'ValidationError', message: 'Falta period (YYYY-MM)' } });
-  }
-  const doc = await Payroll.findOne({ employeeId, period }).lean();
-  if (!doc) {
-    return reply.status(404).send({ error: { code: 'NotFound', message: 'No encontrado' } });
-  }
-  return reply.send(
-    ok(
-      PayrollDTO.parse({
-        ...doc,
-        id: String(doc._id),
-        createdAt: doc.createdAt?.toISOString?.() ?? '',
-        updatedAt: doc.updatedAt?.toISOString?.() ?? ''
-      })
-    )
-  );
-}
-
-export async function putUpdateByEmployeeCtrl(
-  req: FastifyRequest<{
-    Params: { employeeId: string };
-    Querystring: { period?: string };
-  }>,
-  reply: FastifyReply
-) {
-  const { employeeId } = req.params;
-  const { period } = req.query;
-  if (!period) {
-    return reply.status(400).send({ error: { code: 'ValidationError', message: 'Falta period (YYYY-MM)' } });
-  }
-  const body = PayrollUpdateDTO.safeParse(req.body);
-  if (!body.success) {
-    return reply.status(400).send({ error: { code: 'ValidationError', message: 'Invalid body', details: body.error.issues } });
-  }
-  const updated = await Payroll.findOneAndUpdate(
-    { employeeId, period },
-    { $set: body.data },
-    { new: true, runValidators: true }
-  ).lean();
-  if (!updated) {
-    return reply.status(404).send({ error: { code: 'NotFound', message: 'No encontrado' } });
-  }
-  return reply.send(
-    ok(
-      PayrollDTO.parse({
-        ...updated,
-        id: String(updated._id),
-        createdAt: updated.createdAt?.toISOString?.() ?? '',
-        updatedAt: updated.updatedAt?.toISOString?.() ?? ''
-      })
-    )
-  );
+export async function patchStatus(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { status } = PayrollStatusSchema.parse(req.body);
+    const updated = await Service.updateStatus(req.params.id, status as any, (req as any).user?.email ?? 'api');
+    if (!updated) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Liquidación no encontrada' } });
+    res.json(PayrollOutputSchema.parse(mapId(updated)));
+  } catch (err) { next(err); }
 }

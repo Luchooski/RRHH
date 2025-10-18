@@ -100,10 +100,10 @@ export default function CandidateFormPage() {
       phone: '',
       location: '',
       seniority: undefined,
-      skills: [],
       salaryExpectation: undefined,
       resumeUrl: '',
       notes: '',
+      skills: [],
       tags: [],
       links: [],
     },
@@ -119,15 +119,11 @@ export default function CandidateFormPage() {
   });
 
   const mCreate = useMutation({
-    mutationFn: (payload: CandidateInput) => createCandidate(payload),
+    mutationFn: (data: CandidateInput) => createCandidate(data),
     onSuccess: () => navigate('/candidatos'),
   });
 
-  const onSubmit = (raw: FormValues) => {
-    // Convertir INPUT -> OUTPUT (aplica defaults y coerce de number)
-    const parsed = schema.parse(raw) as CandidateInput;
-    mCreate.mutate(parsed);
-  };
+  const onSubmit = (data: CandidateInput) => mCreate.mutate(data);
 
   return (
     <div className="mx-auto max-w-6xl p-4 md:p-6 space-y-4">
@@ -247,7 +243,7 @@ export default function CandidateFormPage() {
           <div className="md:col-span-1">
             <ChipsInput
               label="Skills"
-              values={skills}
+              values={watch('skills') ?? []}
               onAdd={(v) => setValue('skills', [...skills, v], { shouldDirty: true })}
               onRemove={(i) => setValue('skills', skills.filter((_, idx) => idx !== i), { shouldDirty: true })}
               placeholder="Ej: React, Node, SQL…"
@@ -261,7 +257,7 @@ export default function CandidateFormPage() {
           <div className="md:col-span-1">
             <ChipsInput
               label="Tags"
-              values={tags}
+              values={watch('tags') ?? []}
               onAdd={(v) => setValue('tags', [...tags, v], { shouldDirty: true })}
               onRemove={(i) => setValue('tags', tags.filter((_, idx) => idx !== i), { shouldDirty: true })}
               placeholder="Ej: remoto, inglés B2…"

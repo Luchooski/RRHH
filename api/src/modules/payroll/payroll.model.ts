@@ -1,65 +1,72 @@
-import mongoose, { Schema, InferSchemaType } from 'mongoose';
-import { env } from '../../config/env.js';
+import { Schema, model, Document } from 'mongoose';
 
-const ConceptSchema = new Schema({
-  id: { type: String, required: true },
-  name: { type: String, required: true },
-  type: { type: String, enum: ['remunerativo','no_remunerativo','deduccion'], required: true },
-  mode: { type: String, enum: ['monto','porcentaje'], required: true },
-  value: { type: Number, required: true },
-  base: { type: String, enum: ['imponible','bruto','neto_previo','personalizado'], default: 'imponible' },
-  phase: { type: String, enum: ['pre_tax','post_tax'], default: 'pre_tax' },
-  minAmount: Number,
-  maxAmount: Number,
-  roundMode: { type: String, enum: ['none','nearest','down','up'], default: 'nearest' },
-  roundDecimals: { type: Number, default: 2 },
-  priority: { type: Number, default: 100 },
-  enabled: { type: Boolean, default: true },
-  customBase: Number
-}, { 
-  _id: false,
-  timestamps: true,
-  versionKey: false,
-  collection: env.PAYROLLS_COLL,
- });
+export type PayrollStatus = 'pendiente'|'aprobada'|'pagada'|'anulada'|'Borrador'|'Aprobado';
+export type ConceptType = 'remunerativo'|'no_remunerativo'|'indemnizacion';
 
-const PayrollSchema = new Schema({
+export interface Concept { code: string; label: string; type: ConceptType; amount: number; taxable: boolean; }
+export interface Deduction { code: string; label: string; amount: number; }
+
+export interface PayrollDoc extends Document {
+  employeeId: string; employeeName: string;
+  period: string; // YYYY-MM
+  type: 'mensual'|'final'|'extraordinaria'|'vacaciones';
+  status: PayrollStatus;
+
+  baseSalary: number;
+  concepts: Concept[];
+  deductions: Deduction[];
+  grossTotal: number;
+  deductionsTotal: number;
+  netTotal: number;
+  currency: string;
+
+  paymentMethod?: 'transferencia'|'efectivo'|'cheque'|'otro';
+  bankAccount?: string;
+  paymentDate?: Date;
+  receiptUrl?: string;
+
+  notes?: string;
+  approvedBy?: string;
+
+  createdAt: Date; updatedAt: Date;
+}
+
+const ConceptSchema = new Schema<Concept>({
+  code: { type: String, required: true },
+  label: { type: String, required: true },
+  type: { type: String, enum: ['remunerativo','no_remunerativo','indemnizacion'], required: true },
+  amount: { type: Number, required: true },
+  taxable: { type: Boolean, default: true },
+}, { _id: false });
+
+const DeductionSchema = new Schema<Deduction>({
+  code: { type: String, required: true },
+  label: { type: String, required: true },
+  amount: { type: Number, required: true },
+}, { _id: false });
+
+const PayrollSchema = new Schema<PayrollDoc>({
   employeeId: { type: String, required: true, index: true },
   employeeName: { type: String, required: true },
-  period: { type: String, required: true, index: true }, // YYYY-MM
+  period: { type: String, required: true, index: true },
+  type: { type: String, enum: ['mensual','final','extraordinaria','vacaciones'], default: 'mensual' },
+  status: { type: String, enum: ['pendiente','aprobada','pagada','anulada','Borrador','Aprobado'], default: 'pendiente', index: true },
   baseSalary: { type: Number, required: true },
-  bonuses: { type: Number, default: 0 },
-  overtimeHours: { type: Number, default: 0 },
-  overtimeRate: { type: Number, default: 0 },
-  deductions: { type: Number, default: 0 },
-  taxRate: { type: Number, default: 0 },
-  contributionsRate: { type: Number, default: 0 },
-  status: { type: String, enum: ['Borrador','Aprobado'], default: 'Borrador', index: true },
-  concepts: { type: [ConceptSchema], default: [] }
-}, { timestamps: true, versionKey: false });
 
-// Virtual para id (sirve también en .lean({ virtuals: true }))
-PayrollSchema.virtual('id').get(function (this: { _id: mongoose.Types.ObjectId }) {
-  return this._id?.toString();
-});
+  concepts: { type: [ConceptSchema], default: [] },
+  deductions: { type: [DeductionSchema], default: [] },
+  grossTotal: { type: Number, required: true },
+  deductionsTotal: { type: Number, required: true },
+  netTotal: { type: Number, required: true },
+  currency: { type: String, default: 'ARS' },
 
-// Normalizar salida JSON/Objeto: _id -> id y ocultar _id
-PayrollSchema.set('toJSON', {
-  virtuals: true,
-  transform: (_doc: any, ret: any) => {
-    ret.id = ret.id ?? ret._id?.toString();
-    delete ret._id;
-    return ret;
-  },
-});
-PayrollSchema.set('toObject', {
-  virtuals: true,
-  transform: (_doc: any, ret: any) => {
-    ret.id = ret.id ?? ret._id?.toString();
-    delete ret._id;
-    return ret;
-  },
-});
+  paymentMethod: { type: String, enum: ['transferencia','efectivo','cheque','otro'] },
+  bankAccount: String,
+  paymentDate: Date,
+  receiptUrl: String,
 
-export type PayrollDoc = InferSchemaType<typeof PayrollSchema> & { _id: any };
-export const Payroll = mongoose.model('Payroll', PayrollSchema);
+  notes: String,
+  approvedBy: String,
+}, { timestamps: true });
+
+export const PayrollModel = model<PayrollDoc>('Payroll', PayrollSchema);

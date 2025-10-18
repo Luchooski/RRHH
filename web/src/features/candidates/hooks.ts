@@ -1,11 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Candidate, CandidateCreateInput, CandidateUpdateInput, CandidateQuery } from './dto';
 import {
-  apiListCandidates,
-  apiCreateCandidate,
-  apiUpdateCandidate,
-  apiDeleteCandidate,
-  apiGetCandidate,
+  listCandidates,
+  createCandidate,
+  updateCandidate,
+  deleteCandidate,
+  getCandidate,
 } from './api';
 
 const key = (params?: Partial<CandidateQuery>) => ['candidates', params ?? {}];
@@ -15,7 +15,7 @@ export function useListCandidates(params: Partial<CandidateQuery>) {
     queryKey: key(params),
     // 👇 devolvemos ARRAY (items) para que .length exista sin errores
     queryFn: async () => {
-      const out = await apiListCandidates(params);
+      const out = await listCandidates(params);
       return out.items;
     },
     staleTime: 60_000,
@@ -26,7 +26,7 @@ export function useListCandidates(params: Partial<CandidateQuery>) {
 export function useGetCandidate(id?: string) {
   return useQuery({
     queryKey: ['candidate', id],
-    queryFn: () => (id ? apiGetCandidate(id) : null),
+    queryFn: () => (id ? getCandidate(id) : null),
     enabled: !!id,
   });
 }
@@ -34,7 +34,7 @@ export function useGetCandidate(id?: string) {
 export function useCreateCandidate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CandidateCreateInput) => apiCreateCandidate(input),
+    mutationFn: (input: CandidateCreateInput) => createCandidate(input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['candidates'] });
     },
@@ -45,7 +45,7 @@ export function useUpdateCandidate() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: CandidateUpdateInput }) =>
-      apiUpdateCandidate(id, input),
+      updateCandidate(id, input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['candidates'] });
       qc.invalidateQueries({ queryKey: ['candidate'] });
@@ -56,7 +56,7 @@ export function useUpdateCandidate() {
 export function useDeleteCandidate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => apiDeleteCandidate(id),
+    mutationFn: (id: string) => deleteCandidate(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['candidates'] });
     },

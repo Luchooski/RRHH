@@ -1,126 +1,125 @@
-import { Payroll } from './payroll.model.js';
+import { FilterQuery } from 'mongoose';
+import { PayrollModel, PayrollDoc, PayrollStatus } from './payroll.model.js';
+import PDFDocument from 'pdfkit';
+import type { FastifyReply } from 'fastify';
 
-export type PayrollCreateInput = {
-  employeeId: string;
-  employeeName: string;
-  period: string; // 'YYYY-MM'
-  baseSalary: number;
-  bonuses?: number;
-  overtimeHours?: number;
-  overtimeRate?: number;
-  deductions?: number;
-  taxRate?: number;
-  contributionsRate?: number;
-  status?: 'Borrador' | 'Aprobado';
-  concepts?: any[];
+const mapStatusIn = (s?: PayrollStatus): PayrollStatus | undefined => {
+  if (!s) return undefined;
+  if (s === 'Borrador') return 'pendiente';
+  if (s === 'Aprobado') return 'aprobada';
+  return s;
 };
 
-export type PayrollUpdateInput = Partial<PayrollCreateInput>;
+const computeTotals = (input: any) => {
+  const base = Number(input.baseSalary ?? 0);
+  const concepts = Array.isArray(input.concepts) ? input.concepts : [];
+  const deductions = Array.isArray(input.deductions) ? input.deductions : [];
 
-export async function createPayroll(data: PayrollCreateInput) {
-  const doc = await Payroll.create(data);
-  return doc.toObject({ virtuals: true }); // objeto plano + id virtual
-}
+  const grossFromConcepts = concepts.reduce((a: number, c: any) => a + Number(c.amount || 0), 0);
+  const gross = base + grossFromConcepts;
+  const ded = deductions.reduce((a: number, d: any) => a + Number(d.amount || 0), 0);
+  const net = gross - ded;
 
-export async function listPayrolls(filters: {
-  period?: string;
-  employee?: string;
-  status?: 'Borrador' | 'Aprobado';
-  limit?: number;
-  skip?: number;
+  return { grossTotal: gross, deductionsTotal: ded, netTotal: net };
+};
+
+export async function listPayrolls(params: {
+  period?: string; employee?: string; status?: PayrollStatus; limit?: number; skip?: number;
 }) {
-  const q: any = {};
-  if (filters.period) q.period = filters.period;
-  if (filters.employee) q.employeeId = filters.employee;
-  if (filters.status) q.status = filters.status;
+  const { period, employee, status } = params;
+  const limit = Math.min(params.limit ?? 20, 100);
+  const skip = params.skip ?? 0;
 
-  const limit = Number.isFinite(filters.limit) ? Number(filters.limit) : 20;
-  const skip = Number.isFinite(filters.skip) ? Number(filters.skip) : 0;
+  const filter: FilterQuery<PayrollDoc> = {};
+  if (period) filter.period = period;
+  if (employee) filter.employeeId = employee;
+  if (status) filter.status = mapStatusIn(status);
 
-  const items = await Payroll.find(q)
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit)
-    .lean({ virtuals: true }); // <- id virtual, arrays planos
+  const [items, total] = await Promise.all([
+    PayrollModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    PayrollModel.countDocuments(filter),
+  ]);
 
-  const total = await Payroll.countDocuments(q);
   return { items, total, limit, skip };
 }
 
-export async function approvePayroll(id: string) {
-  return Payroll.findByIdAndUpdate(
-    id,
-    { status: 'Aprobado', updatedAt: new Date() },
-    { new: true, runValidators: true }
-  ).lean({ virtuals: true });
+export async function getById(id: string) {
+  return PayrollModel.findById(id).lean();
+}
+
+export async function createPayroll(payload: any) {
+  const totals = computeTotals(payload);
+  const doc = await PayrollModel.create({
+    ...payload,
+    status: mapStatusIn(payload.status) ?? 'pendiente',
+    currency: payload.currency ?? 'ARS',
+    ...totals,
+  });
+  return doc.toObject();
+}
+
+export async function updateById(id: string, payload: any) {
+  const prev = await PayrollModel.findById(id);
+  if (!prev) return null;
+  const next = { ...prev.toObject(), ...payload };
+  const totals = computeTotals(next);
+  Object.assign(prev, payload, { status: mapStatusIn(payload.status) ?? prev.status, ...totals });
+  await prev.save();
+  return prev.toObject();
 }
 
 export async function removePayroll(id: string) {
-  await Payroll.findByIdAndDelete(id);
-  return { ok: true };
+  await PayrollModel.findByIdAndDelete(id);
 }
 
-export async function getById(id: string) {
-  return Payroll.findById(id).lean({ virtuals: true });
+export async function approvePayroll(id: string) {
+  return updateStatus(id, 'aprobada');
 }
 
-export async function updateById(id: string, patch: PayrollUpdateInput) {
-  return Payroll.findByIdAndUpdate(id, { $set: patch }, { new: true, runValidators: true })
-    .lean({ virtuals: true });
+export async function updateStatus(id: string, status: PayrollStatus) {
+  const doc = await PayrollModel.findById(id);
+  if (!doc) return null;
+  doc.status = mapStatusIn(status) ?? doc.status;
+  await doc.save();
+  return doc.toObject();
 }
 
-export async function bulkCreate(data: {
-  period: string;
-  defaults: {
-    bonuses: number; overtimeHours: number; overtimeRate: number;
-    deductions: number; taxRate: number; contributionsRate: number;
-  };
-  concepts: any[];
-  employees: { employeeId: string; employeeName: string; baseSalary: number }[];
-}) {
-  const now = new Date();
-  const docs = data.employees.map((e) => ({
-    employeeId: e.employeeId,
-    employeeName: e.employeeName,
-    period: data.period,
-    baseSalary: e.baseSalary,
-    bonuses: data.defaults.bonuses,
-    overtimeHours: data.defaults.overtimeHours,
-    overtimeRate: data.defaults.overtimeRate,
-    deductions: data.defaults.deductions,
-    taxRate: data.defaults.taxRate,
-    contributionsRate: data.defaults.contributionsRate,
-    status: 'Borrador',
-    concepts: data.concepts,
-    createdAt: now,
-    updatedAt: now,
-  }));
-  const res = await Payroll.insertMany(docs);
-  return res.length;
-}
+// -------- PDF --------
+export async function streamReceiptPdf(id: string, reply: FastifyReply) {
+  const doc = await PayrollModel.findById(id).lean();
+  if (!doc) return false;
 
-export async function exportCSV(filters: { period?: string; employee?: string; status?: 'Borrador' | 'Aprobado' }) {
-  const q: any = {};
-  if (filters.period) q.period = filters.period;
-  if (filters.employee) q.employeeId = filters.employee;
-  if (filters.status) q.status = filters.status;
+  reply.header('Content-Type', 'application/pdf');
+  reply.header('Content-Disposition', `inline; filename="recibo_${doc.employeeName}_${doc.period}.pdf"`);
 
-  const items = await Payroll.find(q).sort({ createdAt: -1 }).lean({ virtuals: true });
-  const headers = [
-    'id','employeeId','employeeName','period','baseSalary','bonuses','overtimeHours',
-    'overtimeRate','deductions','taxRate','contributionsRate','status','createdAt'
-  ];
-  const esc = (v: unknown) => {
-    const s = String(v ?? '');
-    return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const rows = items.map((i: any) =>
-    [
-      i.id, i.employeeId, i.employeeName, i.period, i.baseSalary, i.bonuses,
-      i.overtimeHours, i.overtimeRate, i.deductions, i.taxRate,
-      i.contributionsRate, i.status,
-      typeof i.createdAt === 'string' ? i.createdAt : i.createdAt?.toISOString?.(),
-    ].map(esc).join(',')
-  );
-  return [headers.join(','), ...rows].join('\n');
+  const pdf = new PDFDocument({ size: 'A4', margin: 50 });
+  pdf.pipe(reply.raw);
+
+  pdf.fontSize(16).text('Recibo de Liquidación', { align: 'center' }).moveDown();
+  pdf.fontSize(12).text(`Empleado: ${doc.employeeName}`);
+  pdf.text(`Periodo: ${doc.period}`);
+  pdf.text(`Estado: ${doc.status}`);
+  pdf.moveDown();
+
+  pdf.text(`Sueldo básico: ${doc.currency} ${Number(doc.baseSalary).toLocaleString()}`);
+  pdf.moveDown();
+
+  pdf.text('Conceptos:');
+  doc.concepts.forEach(c => {
+    pdf.text(` - ${c.label} (${c.type}): ${doc.currency} ${Number(c.amount).toLocaleString()}`);
+  });
+  pdf.moveDown();
+
+  pdf.text('Deducciones:');
+  doc.deductions.forEach(d => {
+    pdf.text(` - ${d.label}: ${doc.currency} ${Number(d.amount).toLocaleString()}`);
+  });
+  pdf.moveDown();
+
+  pdf.text(`Bruto: ${doc.currency} ${Number(doc.grossTotal).toLocaleString()}`);
+  pdf.text(`Deducciones: ${doc.currency} ${Number(doc.deductionsTotal).toLocaleString()}`);
+  pdf.text(`Neto: ${doc.currency} ${Number(doc.netTotal).toLocaleString()}`);
+
+  pdf.end();
+  return true;
 }
