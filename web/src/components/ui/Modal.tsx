@@ -1,103 +1,136 @@
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import Portal from './Portal';
+import { X } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
-function getFocusable(container: HTMLElement) {
-  return Array.from(
-    container.querySelectorAll<HTMLElement>(
-      'a[href], button, textarea, input, select, [tabindex]:not([tabindex="-1"])'
-    )
-  ).filter(el => !el.hasAttribute('disabled') && !el.getAttribute('aria-hidden'));
-}
-
-export default function Modal({
-  open, onClose, children, labelledById,
-}:{
+interface ModalProps {
   open: boolean;
   onClose: () => void;
-  children: ReactNode;
-  labelledById?: string;
-}) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
+  children: React.ReactNode;
+  title?: string;
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  closeOnOverlayClick?: boolean;
+  showCloseButton?: boolean;
+}
 
-  // Bloquear scroll del body
+const SIZE_CLASSES = {
+  sm: 'max-w-sm',
+  md: 'max-w-md',
+  lg: 'max-w-lg',
+  xl: 'max-w-xl',
+  full: 'max-w-full',
+};
+
+export default function Modal({
+  open,
+  onClose,
+  children,
+  title,
+  size = 'md',
+  closeOnOverlayClick = true,
+  showCloseButton = true,
+}: ModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Cerrar con ESC
   useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }, [open]);
-
-  // Fade-in en el primer tick
-  useLayoutEffect(() => {
-    if (open) requestAnimationFrame(() => setVisible(true));
-    else setVisible(false);
-  }, [open]);
-
-  // ESC para cerrar
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && open) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
   }, [open, onClose]);
+
+  // Prevenir scroll del body
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [open]);
 
   // Focus trap
   useEffect(() => {
-    if (!open || !panelRef.current) return;
-    const panel = panelRef.current;
-    const focusables = getFocusable(panel);
-    (focusables[0] ?? panel).focus();
+    if (open && modalRef.current) {
+      const focusableElements = modalRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const firstElement = focusableElements[0] as HTMLElement;
+      const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
 
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab') return;
-      const items = getFocusable(panel);
-      if (!items.length) return;
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault(); last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault(); first.focus();
-      }
-    };
-    panel.addEventListener('keydown', onKeyDown as any);
-    return () => panel.removeEventListener('keydown', onKeyDown as any);
+      const handleTab = (e: KeyboardEvent) => {
+        if (e.key !== 'Tab') return;
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement?.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement?.focus();
+          }
+        }
+      };
+
+      window.addEventListener('keydown', handleTab);
+      firstElement?.focus();
+
+      return () => window.removeEventListener('keydown', handleTab);
+    }
   }, [open]);
 
   if (!open) return null;
 
-  return (
-    <Portal id="modal-root">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Overlay */}
       <div
-        className="fixed inset-0 z-[1000] flex items-center justify-center"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={closeOnOverlayClick ? onClose : undefined}
+        aria-hidden="true"
+      />
+
+      {/* Modal */}
+      <div
+        ref={modalRef}
+        className={`relative w-full ${SIZE_CLASSES[size]} animate-in fade-in-0 zoom-in-95 duration-200`}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={labelledById}
+        aria-labelledby={title ? 'modal-title' : undefined}
       >
-        {/* Overlay */}
-        <div
-          className={[
-            'absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity',
-            visible ? 'opacity-100' : 'opacity-0',
-          ].join(' ')}
-          onClick={onClose}
-        />
-        {/* Panel */}
-        <div
-          ref={panelRef}
-          className={[
-            'relative z-[1001] w-[min(92vw,520px)] rounded-2xl',
-            'bg-[--color-bg] text-[--color-fg] shadow-2xl ring-1 ring-[--color-border]',
-            'transition-all duration-150',
-            visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95',
-            'focus:outline-none',
-          ].join(' ')}
-          tabIndex={-1}
-        >
-          {children}
+        <div className="overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-gray-900">
+          {/* Header */}
+          {(title || showCloseButton) && (
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">
+              {title && (
+                <h2 id="modal-title" className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {title}
+                </h2>
+              )}
+              {showCloseButton && (
+                <button
+                  onClick={onClose}
+                  className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+                  aria-label="Cerrar modal"
+                >
+                  <X size={20} />
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Content */}
+          <div className="px-6 py-4">{children}</div>
         </div>
       </div>
-    </Portal>
+    </div>,
+    document.body
   );
 }

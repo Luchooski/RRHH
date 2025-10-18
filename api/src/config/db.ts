@@ -1,28 +1,12 @@
 import mongoose from 'mongoose';
+import { env } from './env.js';
 
-export async function connectMongo(uri: string) {
-  const maxRetries = 10;
-  let attempt = 0;
-  while (attempt < maxRetries) {
-    try {
-      await mongoose.connect(uri, { autoIndex: true });
-      console.log(`[db] connected (${mongoose.connection.readyState})`);
-      return;
-    } catch (err) {
-      attempt++;
-      const backoff = Math.min(30000, 1000 * Math.pow(2, attempt));
-      console.error(`[db] connection error (attempt ${attempt})`, err);
-      await new Promise(r => setTimeout(r, backoff));
-    }
-  }
-  throw new Error(`[db] failed to connect after ${maxRetries} attempts`);
-}
-
-export async function disconnectMongo() {
-  try {
-    await mongoose.disconnect();
-    console.log('[db] disconnected');
-  } catch (err) {
-    console.error('[db] disconnect error', err);
-  }
+export async function connectDB() {
+  mongoose.set('strictQuery', true);
+  await mongoose.connect(env.mongoUri, { autoIndex: env.isDev });
+  mongoose.connection.on('error', (err) => console.error('[mongo] error', err));
+  process.on('SIGINT', async () => {
+    await mongoose.connection.close();
+    process.exit(0);
+  });
 }

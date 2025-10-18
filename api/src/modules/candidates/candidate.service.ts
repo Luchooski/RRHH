@@ -1,4 +1,4 @@
-import { CandidateModel, type CandidateDoc } from './candidate.model.js';
+import { Candidate as CandidateModel, type CandidateDoc } from './candidate.model.js';
 
 export type ListParams = {
   q?: string;
@@ -17,9 +17,7 @@ function mapDoc(doc: CandidateDoc) {
     id: String(doc._id),
     name: doc.name,
     email: doc.email ?? undefined,
-    role: doc.role,
-    match: doc.match ?? 0,
-    status: doc.status ?? 'new',
+    status: (doc as any).status ?? 'new',
     createdAt: doc.createdAt?.toISOString?.() ?? new Date().toISOString(),
     updatedAt: doc.updatedAt?.toISOString?.() ?? new Date().toISOString(),
   };
@@ -31,7 +29,6 @@ export async function listCandidates(params: ListParams) {
     ? { $or: [
         { name:   { $regex: q, $options: 'i' } },
         { email:  { $regex: q, $options: 'i' } },
-        { role:   { $regex: q, $options: 'i' } },
       ] }
     : {};
   const [items, total] = await Promise.all([
@@ -53,20 +50,20 @@ export async function getCandidateById(id: string) {
 }
 
 export async function createCandidate(input: {
-  name: string; email?: string; role: string; match?: number; status?: string;
+  name: string; email: string; status?: string; phone?: string; skills?: string[];
 }) {
   const created = await CandidateModel.create(input);
   return mapDoc(created.toObject() as any);
 }
 
 export async function updateCandidate(id: string, input: Partial<{
-  name: string; email?: string; role: string; match?: number; status?: string;
+  name: string; email?: string; status?: string; phone?: string; skills?: string[];
 }>) {
   const updated = await CandidateModel.findByIdAndUpdate(id, input, { new: true }).lean();
   return updated ? mapDoc(updated as any) : null;
 }
 
-export async function removeCandidate(id: string) {
-  await CandidateModel.findByIdAndDelete(id);
-  return { ok: true };
+export async function deleteCandidateById(id: string) {
+  const r = await CandidateModel.findByIdAndDelete(id);
+  return !!r;
 }

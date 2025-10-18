@@ -19,7 +19,7 @@ export async function login({ email, password }: LoginArgs): Promise<LoginResult
 
   const token = jwt.sign(
     { sub: String(user._id), email: user.email, role: (user as any).role ?? 'user' },
-    env.JWT_SECRET,
+    env.jwtSecret || env.JWT_SECRET,
     { expiresIn: '8h' }
   );
 

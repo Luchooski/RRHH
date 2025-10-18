@@ -45,6 +45,7 @@ import ClientEditPage from '@/features/clients/ClientEditPage';
 
 // 404
 import NotFound from '../pages/NotFound';
+import path from 'path';
 
 function PublicLayout() {
   return <Outlet />;
@@ -71,6 +72,7 @@ const router = createBrowserRouter([
       { path: 'candidatos/nuevos', element: <Navigate to="/candidatos/nuevo" replace /> }, // compatibilidad
       { path: 'candidatos/:id', element: <CandidateDetailPage /> },
       { path: 'candidatos/:id/editar', element: <CandidateEditPage /> },
+
 
       // Entrevistas / Agenda
       { path: 'entrevistas', element: <InterviewsPage /> },

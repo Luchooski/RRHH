@@ -1,44 +1,47 @@
-import { useEffect, useState } from 'react';
 import { Moon, Sun, Monitor } from 'lucide-react';
-import { applyTheme, getTheme, setTheme, subscribeSystemTheme, type Theme } from '@/lib/Theme';
 
-const NEXT: Record<Theme, Theme> = { light: 'dark', dark: 'system', system: 'light' };
+const THEME_CONFIG = {
+  light: { 
+    label: 'Tema claro', 
+    icon: Sun, 
+    next: 'dark' as Theme 
+  },
+  dark: { 
+    label: 'Tema oscuro', 
+    icon: Moon, 
+    next: 'system' as Theme 
+  },
+  system: { 
+    label: 'Tema del sistema', 
+    icon: Monitor, 
+    next: 'light' as Theme 
+  },
+} as const;
 
-export default function ThemeToggle() {
-  const [theme, setThemeState] = useState<Theme>(() => getTheme());
+interface ThemeToggleProps {
+  className?: string;
+  showLabel?: boolean;
+}
 
-  useEffect(() => {
-    // Aplicar el tema actual al montar
-    applyTheme(theme);
-    // Si está en "system", re-aplicar al cambiar preferencia del SO
-    const off = subscribeSystemTheme(() => {
-      if (theme === 'system') applyTheme('system');
-    });
-    return off;
-  }, [theme]);
+export default function ThemeToggle({ className = '', showLabel = false }: ThemeToggleProps) {
+  const { theme, setTheme } = useTheme();
+  const config = THEME_CONFIG[theme];
+  const Icon = config.icon;
 
-  const cycle = () => {
-    const next = NEXT[theme];
-    setThemeState(next);
-    setTheme(next);
+  const handleToggle = () => {
+    setTheme(config.next);
   };
-
-  const label =
-    theme === 'light' ? 'Tema claro'
-    : theme === 'dark' ? 'Tema oscuro'
-    : 'Tema del sistema';
-
-  const Icon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor;
 
   return (
     <button
       type="button"
-      onClick={cycle}
-      className="tw-btn tw-btn-ghost w-10 justify-center"
-      aria-label={`Cambiar tema (actual: ${label})`}
-      title={`Cambiar tema (actual: ${label})`}
+      onClick={handleToggle}
+      className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 ${className}`}
+      aria-label={`Cambiar tema (actual: ${config.label})`}
+      title={config.label}
     >
-      <Icon size={16} />
+      <Icon size={18} className="shrink-0" />
+      {showLabel && <span className="hidden sm:inline">{config.label}</span>}
     </button>
   );
 }

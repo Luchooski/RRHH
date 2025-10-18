@@ -15,12 +15,18 @@ async function http<T>(url: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export async function listCandidates(params?: { q?: string; page?: number; limit?: number; seniority?: string }) {
+export async function listCandidates(params?: {
+  q?: string; page?: number; limit?: number; seniority?: string;
+  status?: string; role?: string; sort?: string;
+}) {
   const qs = new URLSearchParams();
   if (params?.q) qs.set('q', params.q);
   if (params?.page) qs.set('page', String(params.page));
   if (params?.limit) qs.set('limit', String(params.limit));
   if (params?.seniority) qs.set('seniority', params.seniority);
+  if (params?.status) qs.set('status', params.status);
+  if (params?.role) qs.set('role', params.role);
+  if (params?.sort) qs.set('sort', params.sort);
   return http<CandidateList>(`${BASE}/api/v1/candidates${qs.toString() ? `?${qs}` : ''}`);
 }
 

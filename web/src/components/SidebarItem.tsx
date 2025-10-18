@@ -1,46 +1,44 @@
 import { NavLink } from 'react-router-dom';
-import { clsx } from 'clsx';
 
-export default function SidebarItem({
-  to,
-  icon,
-  children,
-  collapsed
-}: {
+interface SidebarItemProps {
   to: string;
   icon: React.ReactNode;
   children: React.ReactNode;
-  collapsed: boolean;
-}) {
+  collapsed?: boolean;
+  onClick?: () => void;
+  badge?: string | number;
+}
+
+export default function SidebarItem({ 
+  to, 
+  icon, 
+  children, 
+  collapsed = false,
+  onClick,
+  badge 
+}: SidebarItemProps) {
   return (
     <NavLink
       to={to}
-      className={({ isActive }) =>
-        clsx(
-          'group relative flex items-center gap-3 h-10 rounded-xl px-3',
-          isActive
-            ? 'bg-[--color-primary]/10 text-[--color-primary]'
-            : 'hover:bg-black/5 dark:hover:bg-white/5'
-        )
-      }
+      onClick={onClick}
+      className={({ isActive }) => `
+        flex items-center gap-3 rounded-lg px-3 py-2.5
+        text-sm font-medium transition-colors
+        ${isActive
+          ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-400'
+          : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+        }
+        ${collapsed ? 'justify-center' : ''}
+      `}
+      title={collapsed ? String(children) : undefined}
     >
-      <span aria-hidden className="shrink-0">{icon}</span>
-      {/* etiqueta oculta en colapsado */}
-       <span
-        className={clsx(
-          'text-sm font-medium transition-opacity text-[--color-fg]',
-          collapsed ? 'opacity-0 pointer-events-none absolute left-12' : 'opacity-100'
-        )}
-              >
-        {children}
-      </span>
-      {/* tooltip cuando está colapsado */}
-      {collapsed && (
-        <span
-          role="tooltip"
-          className="tooltip hidden group-hover:block"
-        >
-          {children}
+      <span className="shrink-0">{icon}</span>
+      {!collapsed && (
+        <span className="flex-1 truncate">{children}</span>
+      )}
+      {!collapsed && badge && (
+        <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">
+          {badge}
         </span>
       )}
     </NavLink>

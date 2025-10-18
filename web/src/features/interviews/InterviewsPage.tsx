@@ -6,7 +6,7 @@ import StatusPill from '../../components/StatusPill';
 import InterviewCard from './InterviewCard';
 import Modal from '../../components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
-import { pushHistory } from '../history/HistoryDrawer';
+import  pushHistory  from '../history/HistoryDrawer';
 
 type Flash = { type: 'success' | 'error'; text: string };
 

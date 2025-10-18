@@ -18,9 +18,10 @@ import { ToastProvider } from './components/ui/Toast';
 import { ConfirmDialogController } from './components/ui/ConfirmDialog';
 
 
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemeProvider>
+    <ThemeProvider >
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
           <AuthProvider>

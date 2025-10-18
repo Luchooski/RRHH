@@ -1,6 +1,6 @@
-import { FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import jwt from 'jsonwebtoken';
-import { env, useCookie } from '../config/env.js';
+import { env } from '../config/env.js';
 
 export type JwtPayload = { sub: string; email: string; role: string; iat: number; exp: number };
 
@@ -10,8 +10,9 @@ export function extractToken(req: FastifyRequest): string | null {
   if (h && typeof h === 'string' && h.startsWith('Bearer ')) {
     return h.slice('Bearer '.length).trim();
   }
-  if (useCookie) {
-    const name = env.COOKIE_NAME || 'token';
+  if (env.useCookie) {
+    // @fastify/cookie agrega req.cookies (tipado incluido)
+    const name = env.cookieName;
     const fromCookie = (req.cookies?.[name] as string | undefined) || null;
     if (fromCookie) return fromCookie;
   }
@@ -20,7 +21,7 @@ export function extractToken(req: FastifyRequest): string | null {
 
 export function verifyToken(token: string): JwtPayload | null {
   try {
-    return jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+    return jwt.verify(token, env.jwtSecret) as JwtPayload;
   } catch {
     return null;
   }

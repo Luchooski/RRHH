@@ -1,74 +1,95 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
-import Portal from './Portal';
+import { CheckCircle, XCircle, Info, AlertTriangle, X } from 'lucide-react';
+import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 
-type ToastKind = 'success' | 'error' | 'info';
-type ToastItem = { id: string; title?: string; message?: string; kind: ToastKind; ttl: number };
+type ToastType = 'success' | 'error' | 'info' | 'warning';
 
-type Ctx = {
-  push: (t: Omit<ToastItem, 'id'> | string) => void;
-  success: (msg: string) => void;
-  error: (msg: string) => void;
-  info: (msg: string) => void;
-};
+interface Toast {
+  id: string;
+  type: ToastType;
+  message: string;
+  duration?: number;
+}
 
-const ToastCtx = createContext<Ctx | null>(null);
+interface ToastContextValue {
+  toasts: Toast[];
+  push: (toast: Omit<Toast, 'id'>) => void;
+  remove: (id: string) => void;
+}
 
-export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<ToastItem[]>([]);
-  const idRef = useRef(0);
+const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 
-  const remove = useCallback((id: string) => {
-    setItems(prev => prev.filter(i => i.id !== id));
+export function useToast() {
+  const context = useContext(ToastContext);
+  if (!context) {
+    throw new Error('useToast debe usarse dentro de ToastProvider');
+  }
+  return context;
+}
+
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const push = useCallback((toast: Omit<Toast, 'id'>) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    const newToast = { ...toast, id };
+    
+    setToasts((prev) => [...prev, newToast]);
+
+    if (toast.duration !== 0) {
+      setTimeout(() => {
+        remove(id);
+      }, toast.duration || 3000);
+    }
   }, []);
 
-  const push = useCallback((t: Omit<ToastItem, 'id'> | string) => {
-    const item: ToastItem = typeof t === 'string'
-      ? { id: String(++idRef.current), message: t, kind: 'info', ttl: 3500 }
-      : { id: String(++idRef.current), ...t };
-    setItems(prev => [...prev, item]);
-    // autocierre
-    setTimeout(() => remove(item.id), item.ttl);
-  }, [remove]);
-
-  const api = useMemo<Ctx>(() => ({
-    push,
-    success: (m: string) => push({ kind: 'success', message: m, ttl: 3000 }),
-    error:   (m: string) => push({ kind: 'error', message: m, ttl: 4500 }),
-    info:    (m: string) => push({ kind: 'info', message: m, ttl: 3500 }),
-  }), [push]);
+  const remove = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   return (
-    <ToastCtx.Provider value={api}>
+    <ToastContext.Provider value={{ toasts, push, remove }}>
       {children}
-      <Portal id="toast-viewport">
-        <div
-          role="status"
-          aria-live="polite"
-          className="fixed bottom-4 right-4 z-[999] flex flex-col gap-2"
-        >
-          {items.map(t => (
-            <div
-              key={t.id}
-              className={[
-                'min-w-[240px] max-w-[360px] rounded-xl px-3 py-2 text-sm shadow-lg ring-1',
-                'bg-[--color-card] text-[--color-fg] ring-[--color-border]',
-                t.kind === 'success' ? 'border-l-4 border-l-emerald-500' : '',
-                t.kind === 'error'   ? 'border-l-4 border-l-red-500'     : '',
-                t.kind === 'info'    ? 'border-l-4 border-l-blue-500'    : '',
-              ].join(' ')}
-            >
-              {t.title ? <div className="font-semibold mb-0.5">{t.title}</div> : null}
-              <div className="opacity-90">{t.message}</div>
-            </div>
-          ))}
-        </div>
-      </Portal>
-    </ToastCtx.Provider>
+      <ToastContainer toasts={toasts} onRemove={remove} />
+    </ToastContext.Provider>
   );
 }
 
-export function useToast() {
-  const ctx = useContext(ToastCtx);
-  if (!ctx) throw new Error('useToast must be used within <ToastProvider>');
-  return ctx;
+function ToastContainer({ toasts, onRemove }: { toasts: Toast[]; onRemove: (id: string) => void }) {
+  return createPortal(
+    <div className="fixed bottom-4 right-4 z-50 space-y-2">
+      {toasts.map((toast) => (
+        <ToastItem key={toast.id} toast={toast} onRemove={onRemove} />
+      ))}
+    </div>,
+    document.body
+  );
+}
+
+const TOAST_CONFIG = {
+  success: { icon: CheckCircle, className: 'bg-green-50 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-900' },
+  error: { icon: XCircle, className: 'bg-red-50 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-900' },
+  info: { icon: Info, className: 'bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-900' },
+  warning: { icon: AlertTriangle, className: 'bg-yellow-50 text-yellow-800 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-400 dark:border-yellow-900' },
+};
+
+function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) => void }) {
+  const config = TOAST_CONFIG[toast.type];
+  const Icon = config.icon;
+
+  return (
+    <div
+      className={`flex items-center gap-3 rounded-lg border p-4 shadow-lg animate-in slide-in-from-right-full duration-300 ${config.className}`}
+      role="alert"
+    >
+      <Icon size={20} className="shrink-0" />
+      <p className="flex-1 text-sm font-medium">{toast.message}</p>
+      <button
+        onClick={() => onRemove(toast.id)}
+        className="shrink-0 rounded-lg p-1 hover:bg-black/10 dark:hover:bg-white/10"
+        aria-label="Cerrar notificación"
+      >
+        <X size={16} />
+      </button>
+    </div>
+  );
 }
