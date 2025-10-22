@@ -93,6 +93,7 @@ const routes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'GET',
     url: '/candidates',
+    onRequest: [app.authGuard],
     schema: {
       querystring: z.object({
         q: z.string().optional(),
@@ -107,9 +108,10 @@ const routes: FastifyPluginAsync = async (app) => {
     },
     handler: async (req, reply) => {
       try {
+        const tenantId = (req as any).user.tenantId;
         const { q, page, limit, seniority } = req.query;
 
-        const cond: any = {};
+        const cond: any = { tenantId };
         if (q?.trim()) {
           const re = new RegExp(q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
           cond.$or = [{ name: re }, { email: re }, { skills: re }, { tags: re }];
@@ -133,12 +135,14 @@ const routes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'GET',
     url: '/candidates/:id',
+    onRequest: [app.authGuard],
     schema: {
       params: z.object({ id: z.string() }),
       response: { 200: CandidateOut, 404: z.object({ error: z.string() }) }
     },
     handler: async (req, reply) => {
-      const c = await Candidate.findById(req.params.id).lean();
+      const tenantId = (req as any).user.tenantId;
+      const c = await Candidate.findOne({ _id: req.params.id, tenantId }).lean();
       if (!c) return reply.code(404).send({ error: 'Candidate not found' });
       return toOut(c);
     }
@@ -148,11 +152,14 @@ const routes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'POST',
     url: '/candidates',
+    onRequest: [app.authGuard],
     schema: { body: CandidateCreateInput, response: { 201: CandidateOut } },
     handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
       const body = req.body as z.infer<typeof CandidateCreateInput>;
       const created = await Candidate.create({
         ...body,
+        tenantId,
         pipelineHistory: [{ stage: req.body.status ?? 'new', at: new Date(), by: 'system' }]
       });
       reply.code(201);
@@ -164,14 +171,20 @@ const routes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'PATCH',
     url: '/candidates/:id',
+    onRequest: [app.authGuard],
     schema: {
       params: z.object({ id: z.string() }),
       body: CandidateUpdateInput,
       response: { 200: CandidateOut, 404: z.object({ error: z.string() }) }
     },
     handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
       const body = req.body as z.infer<typeof CandidateUpdateInput>;
-      const updated = await Candidate.findByIdAndUpdate(req.params.id, body, { new: true }).lean();
+      const updated = await Candidate.findOneAndUpdate(
+        { _id: req.params.id, tenantId },
+        body,
+        { new: true }
+      ).lean();
       if (!updated) return reply.code(404).send({ error: 'Candidate not found' });
       return toOut(updated);
     }
@@ -181,6 +194,7 @@ const routes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'POST',
     url: '/candidates/:id/archive',
+    onRequest: [app.authGuard],
     schema: {
       params: z.object({ id: z.string() }),
       response: {
@@ -189,8 +203,13 @@ const routes: FastifyPluginAsync = async (app) => {
       }
     },
     handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
       const now = new Date();
-      const updated = await Candidate.findByIdAndUpdate(req.params.id, { archivedAt: now }, { new: true }).lean();
+      const updated = await Candidate.findOneAndUpdate(
+        { _id: req.params.id, tenantId },
+        { archivedAt: now },
+        { new: true }
+      ).lean();
       if (!updated) return reply.code(404).send({ error: 'Candidate not found' });
       return { ok: true as const, archivedAt: now.toISOString() };
     }
@@ -200,12 +219,18 @@ const routes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'POST',
     url: '/candidates/:id/restore',
+    onRequest: [app.authGuard],
     schema: {
       params: z.object({ id: z.string() }),
       response: { 200: z.object({ ok: z.literal(true) }), 404: z.object({ error: z.string() }) }
     },
     handler: async (req, reply) => {
-      const updated = await Candidate.findByIdAndUpdate(req.params.id, { archivedAt: null }, { new: true }).lean();
+      const tenantId = (req as any).user.tenantId;
+      const updated = await Candidate.findOneAndUpdate(
+        { _id: req.params.id, tenantId },
+        { archivedAt: null },
+        { new: true }
+      ).lean();
       if (!updated) return reply.code(404).send({ error: 'Candidate not found' });
       return { ok: true as const };
     }
@@ -215,6 +240,7 @@ const routes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'DELETE',
     url: '/candidates/:id',
+    onRequest: [app.authGuard],
     schema: {
       params: z.object({ id: z.string() }),
       response: {
@@ -223,7 +249,8 @@ const routes: FastifyPluginAsync = async (app) => {
       }
     },
     handler: async (req, reply) => {
-      const deleted = await Candidate.findByIdAndDelete(req.params.id);
+      const tenantId = (req as any).user.tenantId;
+      const deleted = await Candidate.findOneAndDelete({ _id: req.params.id, tenantId });
       if (!deleted) return reply.code(404).send({ error: 'Candidate not found' });
       return { ok: true as const };
     }
@@ -233,14 +260,16 @@ const routes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'POST',
     url: '/candidates/:id/comments',
+    onRequest: [app.authGuard],
     schema: {
       params: z.object({ id: z.string() }),
       body: z.object({ by: z.string().optional(), text: z.string().min(1) }),
       response: { 201: CandidateOut, 404: z.object({ error: z.string() }) }
     },
     handler: async (req, reply) => {
-      const updated = await Candidate.findByIdAndUpdate(
-        req.params.id,
+      const tenantId = (req as any).user.tenantId;
+      const updated = await Candidate.findOneAndUpdate(
+        { _id: req.params.id, tenantId },
         { $push: { comments: { ...req.body, at: new Date() } } },
         { new: true }
       ).lean();
@@ -254,15 +283,17 @@ const routes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'POST',
     url: '/candidates/:id/stage',
+    onRequest: [app.authGuard],
     schema: {
       params: z.object({ id: z.string() }),
       body: z.object({ stage: Stage, note: z.string().optional(), by: z.string().optional() }),
       response: { 201: CandidateOut, 404: z.object({ error: z.string() }) }
     },
     handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
       const { stage, note, by } = req.body;
-      const updated = await Candidate.findByIdAndUpdate(
-        req.params.id,
+      const updated = await Candidate.findOneAndUpdate(
+        { _id: req.params.id, tenantId },
         { $set: { status: stage }, $push: { pipelineHistory: { stage, at: new Date(), by, note } } },
         { new: true }
       ).lean();
@@ -276,14 +307,16 @@ const routes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'POST',
     url: '/candidates/:id/reminders',
+    onRequest: [app.authGuard],
     schema: {
       params: z.object({ id: z.string() }),
       body: z.object({ at: z.coerce.date(), note: z.string().min(1) }),
       response: { 201: CandidateOut, 404: z.object({ error: z.string() }) }
     },
     handler: async (req, reply) => {
-      const updated = await Candidate.findByIdAndUpdate(
-        req.params.id,
+      const tenantId = (req as any).user.tenantId;
+      const updated = await Candidate.findOneAndUpdate(
+        { _id: req.params.id, tenantId },
         { $push: { reminders: { ...req.body, done: false } } },
         { new: true }
       ).lean();
@@ -297,6 +330,7 @@ const routes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'POST',
     url: '/candidates/:id/upload/cv',
+    onRequest: [app.authGuard],
     schema: {
       params: z.object({ id: z.string() }),
       response: {
@@ -306,6 +340,7 @@ const routes: FastifyPluginAsync = async (app) => {
       }
     },
     handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
       const parts = req.parts();
       const file = await parts.next();
       if (!file || file.done || file.value.type !== 'file') {
@@ -344,8 +379,8 @@ const routes: FastifyPluginAsync = async (app) => {
       }
       technologies = detectTechnologies(textExcerpt);
 
-      const updated = await Candidate.findByIdAndUpdate(
-        req.params.id,
+      const updated = await Candidate.findOneAndUpdate(
+        { _id: req.params.id, tenantId },
         {
           resume: {
             filename: f.filename,
@@ -366,6 +401,7 @@ const routes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'POST',
     url: '/candidates/:id/upload/avatar',
+    onRequest: [app.authGuard],
     schema: {
       params: z.object({ id: z.string() }),
       response: {
@@ -375,6 +411,7 @@ const routes: FastifyPluginAsync = async (app) => {
       }
     },
     handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
       const parts = req.parts();
       const file = await parts.next();
       if (!file || file.done || file.value.type !== 'file') {
@@ -400,8 +437,8 @@ const routes: FastifyPluginAsync = async (app) => {
       const filename = `${req.params.id}_avatar_${Date.now()}.${f.filename.split('.').pop()}`;
       await fs.writeFile(path.join(uploadsDir, filename), buf);
 
-      const updated = await Candidate.findByIdAndUpdate(
-        req.params.id,
+      const updated = await Candidate.findOneAndUpdate(
+        { _id: req.params.id, tenantId },
         { avatarUrl: `/uploads/${filename}` },
         { new: true }
       ).lean();
