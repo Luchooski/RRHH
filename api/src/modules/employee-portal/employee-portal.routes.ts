@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { Employee } from '../employee/employee.model.js';
 import { PayrollModel } from '../payroll/payroll.model.js';
 import { streamReceiptPdf } from '../payroll/payroll.service.js';
+import { listAttachments, getAttachmentFile } from '../attachment/attachment.service.js';
 
 const ErrorDTO = z.object({ error: z.string() });
 
@@ -69,6 +70,24 @@ const PayrollDetailSchema = z.object({
   notes: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
+});
+
+// Schema for attachments
+const FileTypeEnum = z.enum(['dni', 'cv', 'contract', 'certificate', 'photo', 'other']);
+
+const AttachmentSchema = z.object({
+  id: z.string(),
+  filename: z.string(),
+  fileType: FileTypeEnum,
+  mimeType: z.string(),
+  size: z.number(),
+  description: z.string().optional(),
+  createdAt: z.string(),
+});
+
+const AttachmentListSchema = z.object({
+  items: z.array(AttachmentSchema),
+  total: z.number(),
 });
 
 // Middleware to verify employee role
@@ -278,6 +297,99 @@ export const employeePortalRoutes: FastifyPluginAsync = async (app) => {
       }
 
       return reply;
+    },
+  });
+
+  // GET /employee-portal/attachments - List employee's own attachments
+  r.route({
+    method: 'GET',
+    url: '/employee-portal/attachments',
+    onRequest: [app.authGuard, requireEmployeeRole],
+    schema: {
+      querystring: z.object({
+        fileType: FileTypeEnum.optional(),
+      }),
+      response: {
+        200: AttachmentListSchema,
+        404: ErrorDTO,
+      },
+    },
+    handler: async (req, reply) => {
+      const userEmail = (req as any).user.email;
+      const tenantId = (req as any).user.tenantId;
+      const { fileType } = req.query;
+
+      // Find employee
+      const employee = await Employee.findOne({ email: userEmail, tenantId }).lean();
+
+      if (!employee) {
+        return reply.code(404).send({ error: 'Employee not found' });
+      }
+
+      const employeeId = String(employee._id);
+
+      // List attachments
+      const attachments = await listAttachments(tenantId, employeeId, fileType);
+
+      return {
+        items: attachments.map(a => ({
+          id: String(a._id),
+          filename: a.filename,
+          fileType: a.fileType as any,
+          mimeType: a.mimeType,
+          size: a.size,
+          description: a.description,
+          createdAt: new Date(a.createdAt).toISOString(),
+        })),
+        total: attachments.length,
+      };
+    },
+  });
+
+  // GET /employee-portal/attachments/:id/download - Download attachment
+  r.route({
+    method: 'GET',
+    url: '/employee-portal/attachments/:id/download',
+    onRequest: [app.authGuard, requireEmployeeRole],
+    schema: {
+      params: z.object({ id: z.string() }),
+    },
+    handler: async (req, reply) => {
+      const userEmail = (req as any).user.email;
+      const tenantId = (req as any).user.tenantId;
+      const { id } = req.params;
+
+      // Find employee
+      const employee = await Employee.findOne({ email: userEmail, tenantId }).lean();
+
+      if (!employee) {
+        return reply.code(404).send({ error: 'Employee not found' });
+      }
+
+      const employeeId = String(employee._id);
+
+      // Verify attachment belongs to this employee
+      const { Attachment } = await import('../attachment/attachment.model.js');
+      const attachment = await Attachment.findOne({
+        _id: id,
+        tenantId,
+        employeeId
+      }).lean();
+
+      if (!attachment) {
+        return reply.code(404).send({ error: 'Attachment not found or access denied' });
+      }
+
+      // Download file
+      const file = await getAttachmentFile(id, tenantId);
+
+      if (!file) {
+        return reply.code(404).send({ error: 'File not found' });
+      }
+
+      reply.header('Content-Type', file.mimeType);
+      reply.header('Content-Disposition', `attachment; filename="${file.filename}"`);
+      return reply.send(file.buffer);
     },
   });
 };
