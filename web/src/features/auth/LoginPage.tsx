@@ -55,6 +55,14 @@ export default function LoginPage(){
           {submitting && <Spinner label="Iniciando sesión…" />} <span>{submitting?'Ingresando…':'Ingresar'}</span>
         </button>
       </form>
+      <div className="mt-6 text-center">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          ¿No tienes una cuenta?{' '}
+          <a href="/register" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
+            Registra tu empresa
+          </a>
+        </p>
+      </div>
     </div>
   );
 }

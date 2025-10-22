@@ -43,9 +43,17 @@ import ClientsPage from '../features/clients/ClientsPage';
 import ClientCreatePage from '@/features/clients/ClientCreatePage';
 import ClientEditPage from '@/features/clients/ClientEditPage';
 
+// Tenant Registration
+import { TenantRegister } from '../pages/TenantRegister';
+
+// Employee Portal
+import { EmployeeLayout } from '../pages/employee-portal/EmployeeLayout';
+import { EmployeeProfile } from '../pages/employee-portal/EmployeeProfile';
+import { EmployeePayrolls } from '../pages/employee-portal/EmployeePayrolls';
+import { EmployeeDocuments } from '../pages/employee-portal/EmployeeDocuments';
+
 // 404
 import NotFound from '../pages/NotFound';
-import path from 'path';
 
 function PublicLayout() {
   return <Outlet />;
@@ -58,8 +66,22 @@ function ProtectedLayout() {
   return <App />; // App debe renderizar <Outlet />
 }
 
+function EmployeeProtectedLayout() {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="p-6">Cargando sesión…</div>;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== 'employee') return <Navigate to="/" replace />;
+  return <EmployeeLayout />;
+}
+
 const router = createBrowserRouter([
-  { element: <PublicLayout />, children: [{ path: '/login', element: <LoginPage /> }] },
+  {
+    element: <PublicLayout />,
+    children: [
+      { path: '/login', element: <LoginPage /> },
+      { path: '/register', element: <TenantRegister /> },
+    ]
+  },
   {
     path: '/',
     element: <ProtectedLayout />,
@@ -106,6 +128,15 @@ const router = createBrowserRouter([
 
       // 404
       { path: '*', element: <NotFound /> },
+    ],
+  },
+  {
+    path: '/employee',
+    element: <EmployeeProtectedLayout />,
+    children: [
+      { index: true, element: <EmployeeProfile /> },
+      { path: 'payrolls', element: <EmployeePayrolls /> },
+      { path: 'documents', element: <EmployeeDocuments /> },
     ],
   },
 ]);
