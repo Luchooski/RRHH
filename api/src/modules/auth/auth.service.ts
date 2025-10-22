@@ -4,6 +4,7 @@ import { randomBytes } from 'crypto';
 import { env } from '../../config/env.js';
 import { UserModel } from '../user/user.model.js';
 import { isTenantActive } from '../tenant/tenant.service.js';
+import { PasswordResetModel } from './password-reset.model.js';
 
 type LoginArgs = { email: string; password: string };
 type LoginResult = {
@@ -186,4 +187,95 @@ export async function ensureSeedAdmin() {
       tenantId: demoTenant._id.toString()
     });
   }
+}
+
+/**
+ * Forgot Password: genera token de recuperación y retorna info para enviar email
+ */
+export async function forgotPassword(email: string): Promise<{
+  token: string;
+  user: { name: string; email: string };
+} | null> {
+  // Buscar usuario por email
+  const user = await UserModel.findOne({ email: email.toLowerCase().trim() }).lean();
+  if (!user) {
+    // Por seguridad, no revelamos si el email existe o no
+    // Retornamos null silenciosamente
+    return null;
+  }
+
+  // Verificar que el usuario esté activo
+  if (!(user as any).isActive) return null;
+
+  // Verificar que el tenant esté activo
+  const tenantActive = await isTenantActive((user as any).tenantId);
+  if (!tenantActive) return null;
+
+  // Generar token seguro de 32 bytes (64 caracteres hex)
+  const token = randomBytes(32).toString('hex');
+
+  // Token válido por 1 hora
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+  // Invalidar tokens anteriores del mismo usuario
+  await PasswordResetModel.updateMany(
+    { email: email.toLowerCase().trim(), used: false },
+    { $set: { used: true } }
+  );
+
+  // Crear nuevo token de recuperación
+  await PasswordResetModel.create({
+    email: email.toLowerCase().trim(),
+    token,
+    tenantId: (user as any).tenantId,
+    expiresAt,
+    used: false
+  });
+
+  return {
+    token,
+    user: {
+      name: (user as any).name ?? user.email,
+      email: user.email
+    }
+  };
+}
+
+/**
+ * Reset Password: valida token y actualiza contraseña
+ */
+export async function resetPassword(token: string, newPassword: string): Promise<boolean> {
+  // Buscar token válido
+  const resetToken = await PasswordResetModel.findOne({
+    token,
+    used: false,
+    expiresAt: { $gt: new Date() } // No expirado
+  }).lean();
+
+  if (!resetToken) {
+    return false; // Token inválido o expirado
+  }
+
+  // Buscar usuario
+  const user = await UserModel.findOne({ email: resetToken.email });
+  if (!user) {
+    return false;
+  }
+
+  // Hash de nueva contraseña
+  const hash = await bcrypt.hash(newPassword, 10);
+
+  // Actualizar contraseña
+  await UserModel.findByIdAndUpdate(user._id, {
+    passwordHash: hash,
+    // Invalidar todos los refresh tokens (cerrar sesiones activas)
+    $unset: { refreshToken: '', refreshTokenExpiry: '' }
+  });
+
+  // Marcar token como usado
+  await PasswordResetModel.findByIdAndUpdate(resetToken._id, {
+    used: true
+  });
+
+  return true;
 }

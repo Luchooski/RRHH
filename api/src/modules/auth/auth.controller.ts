@@ -4,6 +4,7 @@ import * as svc from './auth.service.js';
 import { extractToken, verifyToken } from '../../middlewares/auth.js';
 import { UserModel } from '../user/user.model.js';
 import mongoose from 'mongoose';
+import { sendPasswordResetEmail } from '../../services/email.service.js';
 
 export async function loginHandler(req: FastifyRequest, reply: FastifyReply) {
   try {
@@ -191,5 +192,108 @@ export async function logoutHandler(req: FastifyRequest, reply: FastifyReply) {
       reply.clearCookie('refreshToken', { path: '/' });
     }
     return reply.status(200).send({ ok: true });
+  }
+}
+
+/**
+ * Forgot Password Handler
+ */
+export async function forgotPasswordHandler(req: FastifyRequest, reply: FastifyReply) {
+  try {
+    const body = (req as any).body as { email?: string };
+    const email = (body?.email || '').trim();
+
+    if (!email) {
+      return reply.status(400).send({
+        error: { code: 'BAD_REQUEST', message: 'Email is required' }
+      });
+    }
+
+    req.log.info({ route: 'auth/forgot-password', email }, 'forgot password request');
+
+    // Generar token de recuperación
+    const result = await svc.forgotPassword(email);
+
+    // Por seguridad, siempre retornamos éxito aunque el email no exista
+    // Esto evita enumeration attacks
+    if (result) {
+      // Enviar email de recuperación
+      const resetUrl = `${env.CORS_ORIGIN || 'http://localhost:5173'}/reset-password`;
+
+      await sendPasswordResetEmail({
+        to: result.user.email,
+        userName: result.user.name,
+        resetToken: result.token,
+        resetUrl
+      }).catch((error) => {
+        req.log.error({ error }, 'Failed to send password reset email');
+        // No bloqueamos la respuesta aunque falle el email
+      });
+
+      req.log.info({ email }, 'Password reset email sent');
+    }
+
+    // Siempre retornamos éxito (seguridad)
+    return reply.status(200).send({
+      ok: true,
+      message: 'Si el email existe en nuestro sistema, recibirás instrucciones para recuperar tu contraseña.'
+    });
+
+  } catch (err: any) {
+    req.log.error({ err, route: 'auth/forgot-password' }, 'forgot password failed');
+    return reply.status(500).send({
+      error: { code: 'INTERNAL', message: 'Failed to process password reset request' }
+    });
+  }
+}
+
+/**
+ * Reset Password Handler
+ */
+export async function resetPasswordHandler(req: FastifyRequest, reply: FastifyReply) {
+  try {
+    const body = (req as any).body as { token?: string; newPassword?: string };
+    const token = (body?.token || '').trim();
+    const newPassword = body?.newPassword || '';
+
+    if (!token || !newPassword) {
+      return reply.status(400).send({
+        error: { code: 'BAD_REQUEST', message: 'Token and new password are required' }
+      });
+    }
+
+    // Validar longitud mínima de contraseña
+    if (newPassword.length < 6) {
+      return reply.status(400).send({
+        error: { code: 'BAD_REQUEST', message: 'Password must be at least 6 characters' }
+      });
+    }
+
+    req.log.info({ route: 'auth/reset-password', token: token.substring(0, 10) + '...' }, 'reset password request');
+
+    // Resetear contraseña
+    const success = await svc.resetPassword(token, newPassword);
+
+    if (!success) {
+      return reply.status(400).send({
+        error: {
+          code: 'INVALID_TOKEN',
+          message: 'Token inválido o expirado. Solicita un nuevo enlace de recuperación.'
+        }
+      });
+    }
+
+    req.log.info({ token: token.substring(0, 10) + '...' }, 'Password reset successfully');
+
+    return reply.status(200).send({
+      ok: true,
+      message: 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.'
+    });
+
+  } catch (err: any) {
+    req.log.error({ err, route: 'auth/reset-password' }, 'reset password failed');
+    return reply.status(500).send({
+      error: { code: 'INTERNAL', message: 'Failed to reset password' }
+    });
   }
 }
