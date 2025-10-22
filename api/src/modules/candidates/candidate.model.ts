@@ -4,7 +4,7 @@ import { Schema, model, type Document } from 'mongoose';
 export type PipelineStage = 'new' | 'screening' | 'interview' | 'offer' | 'hired' | 'rejected';
 
  export interface CandidateDoc extends Document {
-
+  tenantId: string;
   name: string;
   email: string;
   phone?: string;
@@ -45,6 +45,7 @@ export type PipelineStage = 'new' | 'screening' | 'interview' | 'offer' | 'hired
 
  const CandidateSchema = new Schema<CandidateDoc>(
    {
+     tenantId: { type: String, required: true, index: true },
      name: { type: String, required: true, trim: true, index: true },
      email: { type: String, required: true, trim: true, lowercase: true, index: true },
      phone: { type: String, trim: true },

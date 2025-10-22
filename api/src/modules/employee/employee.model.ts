@@ -1,6 +1,7 @@
 import mongoose, { Schema, InferSchemaType } from 'mongoose';
 
 const EmployeeSchema = new Schema({
+  tenantId:     { type: String, required: true, index: true },
   name:         { type: String, required: true, index: true },
   email:        { type: String, required: true, index: true },
   role:         { type: String, required: true, index: true },
@@ -12,6 +13,10 @@ const EmployeeSchema = new Schema({
   versionKey: false,
   // collection: 'employees'
 });
+
+// Índice compuesto para queries por tenant
+EmployeeSchema.index({ tenantId: 1, email: 1 });
+EmployeeSchema.index({ tenantId: 1, createdAt: -1 });
 
 EmployeeSchema.virtual('id').get(function (this: { _id: mongoose.Types.ObjectId }) {
   return this._id?.toString();

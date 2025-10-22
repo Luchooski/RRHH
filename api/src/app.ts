@@ -18,7 +18,9 @@ import payrollRoutes from './modules/payroll/payroll.routes.js';
 import clientRoutes from './modules/client/client.routes.js';
 import reportsRoutes from './modules/reports/reports.routes.js';
 import healthRoutes from './modules/health/health.routes.js';
+import tenantRoutes from './modules/tenant/tenant.routes.js';
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod';
+import { authGuard } from './middlewares/auth.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
@@ -29,6 +31,7 @@ export async function buildApp() {
 
 
   app.decorate('config', env);
+  app.decorate('authGuard', authGuard());
 
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
@@ -71,6 +74,9 @@ export async function buildApp() {
   // 👇 IMPORTANTE: prefixes
   await app.withTypeProvider<ZodTypeProvider>().register(authRoutes, { prefix: '/api/v1/auth' });
   app.log.info('authRoutes registered at /api/v1/auth');
+
+  await app.withTypeProvider<ZodTypeProvider>().register(tenantRoutes, { prefix: '/api/v1' });
+  app.log.info('tenantRoutes registered at /api/v1');
 
   await app.withTypeProvider<ZodTypeProvider>().register(candidateRoutes, { prefix: '/api/v1' });
   app.log.info('candidateRoutes registered at /api/v1');

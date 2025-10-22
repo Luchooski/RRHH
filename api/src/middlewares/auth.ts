@@ -2,7 +2,15 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 
-export type JwtPayload = { sub: string; email: string; role: string; iat: number; exp: number };
+export type JwtPayload = {
+  sub: string;
+  email: string;
+  name: string;
+  role: string;
+  tenantId: string;
+  iat: number;
+  exp: number;
+};
 
 // Extrae token desde Authorization: Bearer ... o cookie httpOnly
 export function extractToken(req: FastifyRequest): string | null {
@@ -38,6 +46,12 @@ export function authGuard() {
     if (!payload) {
       return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Invalid token' } });
     }
-    (req as any).user = { id: payload.sub, email: payload.email, role: payload.role };
+    (req as any).user = {
+      id: payload.sub,
+      email: payload.email,
+      name: payload.name,
+      role: payload.role,
+      tenantId: payload.tenantId
+    };
   };
 }
