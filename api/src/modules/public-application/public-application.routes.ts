@@ -7,7 +7,8 @@ import { VacancyModel } from '../vacancy/vacancy.model.js';
 import path from 'path';
 import fs from 'fs/promises';
 import { randomBytes } from 'crypto';
-import { sendApplicationConfirmation } from '../../services/email.service.js';
+import { sendApplicationConfirmation, sendNewApplicationNotification } from '../../services/email.service.js';
+import { UserModel } from '../user/user.model.js';
 
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads', 'cvs');
 
@@ -203,22 +204,52 @@ export default async function publicApplicationRoutes(app: FastifyInstance) {
           'Public application submitted'
         );
 
-        // Actualizar analytics del tenant
+        // Actualizar analytics del tenant con reset mensual automático
         const now = new Date();
-        const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const currentMonth = now.getMonth() + 1; // 1-12
+        const currentYear = now.getFullYear();
 
-        await Tenant.findByIdAndUpdate(tenantId, {
-          $inc: {
-            'analytics.totalApplications': 1,
-            'analytics.applicationsByCareersPage': 1,
-            'analytics.applicationsThisMonth': 1
-          },
-          $set: {
-            'analytics.lastApplicationDate': now
-          }
-        }).catch((error) => {
-          req.log.error({ error }, 'Failed to update analytics');
-        });
+        // Verificar si cambió el mes para resetear el contador mensual
+        const tenantForAnalytics = await Tenant.findById(tenantId).select('analytics').lean();
+        const shouldResetMonth =
+          !tenantForAnalytics?.analytics?.currentMonth ||
+          !tenantForAnalytics?.analytics?.currentYear ||
+          tenantForAnalytics.analytics.currentMonth !== currentMonth ||
+          tenantForAnalytics.analytics.currentYear !== currentYear;
+
+        if (shouldResetMonth) {
+          // Nuevo mes: resetear contador mensual a 1
+          await Tenant.findByIdAndUpdate(tenantId, {
+            $inc: {
+              'analytics.totalApplications': 1,
+              'analytics.applicationsByCareersPage': 1,
+            },
+            $set: {
+              'analytics.applicationsThisMonth': 1,
+              'analytics.lastApplicationDate': now,
+              'analytics.currentMonth': currentMonth,
+              'analytics.currentYear': currentYear
+            }
+          }).catch((error) => {
+            req.log.error({ error }, 'Failed to update analytics');
+          });
+        } else {
+          // Mismo mes: incrementar normalmente
+          await Tenant.findByIdAndUpdate(tenantId, {
+            $inc: {
+              'analytics.totalApplications': 1,
+              'analytics.applicationsByCareersPage': 1,
+              'analytics.applicationsThisMonth': 1
+            },
+            $set: {
+              'analytics.lastApplicationDate': now,
+              'analytics.currentMonth': currentMonth,
+              'analytics.currentYear': currentYear
+            }
+          }).catch((error) => {
+            req.log.error({ error }, 'Failed to update analytics');
+          });
+        }
 
         // Enviar email de confirmación al candidato (no bloquear la respuesta)
         sendApplicationConfirmation({
@@ -229,6 +260,32 @@ export default async function publicApplicationRoutes(app: FastifyInstance) {
         }).catch((error) => {
           req.log.error({ error }, 'Failed to send confirmation email');
         });
+
+        // Notificar a usuarios admin/hr del tenant (no bloquear la respuesta)
+        UserModel.find({ tenantId, role: { $in: ['admin', 'hr'] }, isActive: true })
+          .select('email')
+          .limit(10)
+          .lean()
+          .then((hrUsers) => {
+            if (hrUsers.length > 0) {
+              // Enviar a todos los admin/hr (máximo 10)
+              hrUsers.forEach((hrUser) => {
+                sendNewApplicationNotification({
+                  to: hrUser.email,
+                  candidateName: `${firstName} ${lastName}`,
+                  candidateEmail: email,
+                  companyName: tenant.name,
+                  vacancyTitle,
+                  careersUrl: `${req.protocol}://${req.hostname}/candidatos/${candidate._id}`
+                }).catch((error) => {
+                  req.log.error({ error, hrEmail: hrUser.email }, 'Failed to send HR notification');
+                });
+              });
+            }
+          })
+          .catch((error) => {
+            req.log.error({ error }, 'Failed to fetch HR users for notification');
+          });
 
         return reply.status(201).send({
           success: true,

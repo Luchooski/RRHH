@@ -13,6 +13,7 @@ import {
   updateTenant,
   listTenants
 } from './tenant.service.js';
+import { CandidateModel } from '../candidate/candidate.model.js';
 
 const tenantRoutes: FastifyPluginAsync = async (app) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -42,6 +43,88 @@ const tenantRoutes: FastifyPluginAsync = async (app) => {
       }
 
       return tenant;
+    }
+  });
+
+  // GET /tenants/me/application-trends - Obtener tendencias de aplicaciones
+  r.route({
+    method: 'GET',
+    url: '/tenants/me/application-trends',
+    schema: {
+      querystring: z.object({
+        days: z.coerce.number().min(7).max(90).default(30)
+      }),
+      response: {
+        200: z.object({
+          trends: z.array(z.object({
+            date: z.string(),
+            count: z.number(),
+            careersPage: z.number()
+          }))
+        })
+      }
+    },
+    onRequest: [app.authGuard],
+    handler: async (req, reply) => {
+      const user = (req as any).user;
+      const { days } = req.query as { days: number };
+
+      // Calcular fecha de inicio
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      startDate.setHours(0, 0, 0, 0);
+
+      // Agregación de MongoDB para contar aplicaciones por día
+      const trends = await CandidateModel.aggregate([
+        {
+          $match: {
+            tenantId: user.tenantId,
+            createdAt: { $gte: startDate }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              $dateToString: { format: '%Y-%m-%d', date: '$createdAt' }
+            },
+            count: { $sum: 1 },
+            careersPage: {
+              $sum: {
+                $cond: [{ $eq: ['$source', 'careers_page'] }, 1, 0]
+              }
+            }
+          }
+        },
+        {
+          $sort: { _id: 1 }
+        },
+        {
+          $project: {
+            _id: 0,
+            date: '$_id',
+            count: 1,
+            careersPage: 1
+          }
+        }
+      ]);
+
+      // Rellenar días sin datos con 0
+      const trendsMap = new Map(trends.map(t => [t.date, t]));
+      const result = [];
+
+      for (let i = 0; i < days; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - (days - 1 - i));
+        const dateStr = date.toISOString().split('T')[0];
+
+        result.push(trendsMap.get(dateStr) || {
+          date: dateStr,
+          count: 0,
+          careersPage: 0
+        });
+      }
+
+      return { trends: result };
     }
   });
 

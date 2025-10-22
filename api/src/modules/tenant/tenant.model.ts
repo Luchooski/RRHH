@@ -22,6 +22,8 @@ export interface ITenant extends Document {
     applicationsByCareersPage?: number;
     applicationsThisMonth?: number;
     lastApplicationDate?: Date;
+    currentMonth?: number; // Mes actual (1-12) para detectar cambios de mes
+    currentYear?: number;  // Año actual para detectar cambios de año
   };
   createdAt: Date;
   updatedAt: Date;
@@ -83,7 +85,9 @@ const TenantSchema = new Schema<ITenant>(
       totalApplications: { type: Number, default: 0 },
       applicationsByCareersPage: { type: Number, default: 0 },
       applicationsThisMonth: { type: Number, default: 0 },
-      lastApplicationDate: { type: Date }
+      lastApplicationDate: { type: Date },
+      currentMonth: { type: Number },
+      currentYear: { type: Number }
     }
   },
   {

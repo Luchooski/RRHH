@@ -178,8 +178,29 @@ export function CareersPage() {
 
   const primaryColor = companyInfo?.company.primaryColor || '#6366f1';
 
+  // Helper para convertir color hex a RGB para transparencias
+  const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+        }
+      : { r: 99, g: 102, b: 241 }; // fallback indigo-500
+  };
+
+  const rgb = hexToRgb(primaryColor);
+  const primaryColorRgb = `${rgb.r}, ${rgb.g}, ${rgb.b}`;
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div
+      className="min-h-screen bg-gray-50 dark:bg-gray-950"
+      style={{
+        '--primary-color': primaryColor,
+        '--primary-color-rgb': primaryColorRgb
+      } as React.CSSProperties}
+    >
       {/* Header */}
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
         <div className="container-custom py-8">
@@ -223,9 +244,17 @@ export function CareersPage() {
                       key={vacancy.id}
                       className={`p-3 rounded-lg border cursor-pointer transition-all ${
                         formData.vacancyId === vacancy.id
-                          ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950'
+                          ? ''
                           : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'
                       }`}
+                      style={
+                        formData.vacancyId === vacancy.id
+                          ? {
+                              borderColor: primaryColor,
+                              backgroundColor: `rgba(var(--primary-color-rgb), 0.1)`
+                            }
+                          : undefined
+                      }
                       onClick={() => setFormData({ ...formData, vacancyId: vacancy.id })}
                     >
                       <h3 className="font-medium text-gray-900 dark:text-gray-100 text-sm">
@@ -253,8 +282,13 @@ export function CareersPage() {
             <div className="card">
               {success ? (
                 <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-green-100 dark:bg-green-950 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div
+                    className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                    style={{
+                      backgroundColor: `rgba(var(--primary-color-rgb), 0.15)`
+                    }}
+                  >
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: primaryColor }}>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
@@ -266,7 +300,16 @@ export function CareersPage() {
                   </p>
                   <button
                     onClick={() => setSuccess(false)}
-                    className="btn btn-primary"
+                    className="font-medium py-2.5 px-6 rounded-lg transition-all text-white"
+                    style={{
+                      backgroundColor: primaryColor
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.opacity = '0.9';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.opacity = '1';
+                    }}
                   >
                     Enviar otra aplicación
                   </button>
@@ -332,7 +375,18 @@ export function CareersPage() {
                     <div>
                       <label className="label">CV (PDF o DOC/DOCX) *</label>
                       <div className="mt-1">
-                        <label className="block border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-6 text-center cursor-pointer hover:border-indigo-500 dark:hover:border-indigo-400 transition-colors">
+                        <label
+                          className="block border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-6 text-center cursor-pointer transition-colors"
+                          style={{
+                            '--hover-border-color': primaryColor
+                          } as React.CSSProperties}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = primaryColor;
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = '';
+                          }}
+                        >
                           <input
                             type="file"
                             className="hidden"
@@ -371,7 +425,19 @@ export function CareersPage() {
                     <button
                       type="submit"
                       disabled={submitApplication.isPending}
-                      className="btn btn-primary w-full"
+                      className="w-full font-medium py-2.5 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed text-white"
+                      style={{
+                        backgroundColor: primaryColor,
+                        boxShadow: `0 1px 2px 0 rgba(var(--primary-color-rgb), 0.05)`
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!submitApplication.isPending) {
+                          e.currentTarget.style.opacity = '0.9';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.opacity = '1';
+                      }}
                     >
                       {submitApplication.isPending ? (
                         <>

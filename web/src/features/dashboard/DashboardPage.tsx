@@ -17,6 +17,7 @@ import type { InterviewDTO } from '@/features/interviews/calendar.schema';
 import type { VacancyDTO } from '@/features/vacancies/vacancy.schema';
 import Empty from '@/components/ui/Empty';
 import { CareersUrlWidget } from '@/components/dashboard/CareersUrlWidget';
+import { TrendsChart } from '@/components/dashboard/TrendsChart';
 
 export default function DashboardPage() {
   // KPIs (reportes)
@@ -171,6 +172,9 @@ export default function DashboardPage() {
             )}
           </div>
         </section>
+
+        {/* Tendencias de aplicaciones */}
+        <TrendsChart />
 
         {/* Vacantes abiertas */}
         <section className="rounded-2xl border bg-white/65 dark:bg-zinc-900/40 backdrop-blur-sm border-zinc-200/80 dark:border-white/10 p-3 shadow-sm">

@@ -55,6 +55,9 @@ import { EmployeeDocuments } from '../pages/employee-portal/EmployeeDocuments';
 // Public Careers
 import { CareersPage } from '../pages/CareersPage';
 
+// Tenant Settings
+import { TenantSettings } from '../pages/TenantSettings';
+
 // 404
 import NotFound from '../pages/NotFound';
 
@@ -126,6 +129,9 @@ const router = createBrowserRouter([
 
       // Reportes
       { path: 'reportes', element: <ReportsPage /> },
+
+      // Configuración de Empresa
+      { path: 'configuracion', element: <TenantSettings /> },
 
       // Historial (placeholder, si querés una página dedicada)
       { path: 'historial', element: <DashboardPage /> },
