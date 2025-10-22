@@ -2,12 +2,36 @@
 import { http, setToken } from './http';
 
 export type LoginBody = { email: string; password: string };
-export type LoginRes = { token: string };
+
+export type User = {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  tenantId: string;
+};
+
+export type LoginRes = {
+  accessToken: string;
+  refreshToken: string;
+  user: User;
+  // Legacy support
+  token?: string;
+};
+
+export type RefreshRes = {
+  accessToken: string;
+  refreshToken: string;
+};
 
 export const api = {
   // Auth
   login: (body: LoginBody) => http.post<LoginRes>('/api/v1/auth/login', body),
-  me: () => http.get<{ id: string; email: string; role: string }>('/api/v1/auth/me', { auth: true }),
+
+  refresh: () => http.post<RefreshRes>('/api/v1/auth/refresh', undefined, { auth: true }),
+
+  me: () => http.get<User>('/api/v1/auth/me', { auth: true }),
+
   logout: async () => {
     try {
       await http.post<{ ok: boolean }>('/api/v1/auth/logout', undefined, { auth: true });
