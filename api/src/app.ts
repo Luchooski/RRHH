@@ -19,6 +19,7 @@ import clientRoutes from './modules/client/client.routes.js';
 import reportsRoutes from './modules/reports/reports.routes.js';
 import healthRoutes from './modules/health/health.routes.js';
 import tenantRoutes from './modules/tenant/tenant.routes.js';
+import employeePortalRoutes from './modules/employee-portal/employee-portal.routes.js';
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod';
 import { authGuard } from './middlewares/auth.js';
 import fs from 'node:fs/promises';
@@ -104,6 +105,9 @@ export async function buildApp() {
 
   await app.withTypeProvider<ZodTypeProvider>().register(healthRoutes, { prefix: '/api/v1' });
   app.log.info('healthRoutes registered at /api/v1');
+
+  await app.withTypeProvider<ZodTypeProvider>().register(employeePortalRoutes, { prefix: '/api/v1' });
+  app.log.info('employeePortalRoutes registered at /api/v1');
 
   if (env.isDev) await app.register(seedRoutes, { prefix: '/api/v1' });
 
