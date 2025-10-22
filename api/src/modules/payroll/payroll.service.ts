@@ -24,13 +24,13 @@ const computeTotals = (input: any) => {
 };
 
 export async function listPayrolls(params: {
-  period?: string; employee?: string; status?: PayrollStatus; limit?: number; skip?: number;
+  tenantId: string; period?: string; employee?: string; status?: PayrollStatus; limit?: number; skip?: number;
 }) {
-  const { period, employee, status } = params;
+  const { tenantId, period, employee, status } = params;
   const limit = Math.min(params.limit ?? 20, 100);
   const skip = params.skip ?? 0;
 
-  const filter: FilterQuery<PayrollDoc> = {};
+  const filter: FilterQuery<PayrollDoc> = { tenantId };
   if (period) filter.period = period;
   if (employee) filter.employeeId = employee;
   if (status) filter.status = mapStatusIn(status);
@@ -43,14 +43,15 @@ export async function listPayrolls(params: {
   return { items, total, limit, skip };
 }
 
-export async function getById(id: string) {
-  return PayrollModel.findById(id).lean();
+export async function getById(id: string, tenantId: string) {
+  return PayrollModel.findOne({ _id: id, tenantId }).lean();
 }
 
-export async function createPayroll(payload: any) {
+export async function createPayroll(payload: any, tenantId: string) {
   const totals = computeTotals(payload);
   const doc = await PayrollModel.create({
     ...payload,
+    tenantId,
     status: mapStatusIn(payload.status) ?? 'pendiente',
     currency: payload.currency ?? 'ARS',
     ...totals,
@@ -58,8 +59,8 @@ export async function createPayroll(payload: any) {
   return doc.toObject();
 }
 
-export async function updateById(id: string, payload: any) {
-  const prev = await PayrollModel.findById(id);
+export async function updateById(id: string, payload: any, tenantId: string) {
+  const prev = await PayrollModel.findOne({ _id: id, tenantId });
   if (!prev) return null;
   const next = { ...prev.toObject(), ...payload };
   const totals = computeTotals(next);
@@ -68,16 +69,16 @@ export async function updateById(id: string, payload: any) {
   return prev.toObject();
 }
 
-export async function removePayroll(id: string) {
-  await PayrollModel.findByIdAndDelete(id);
+export async function removePayroll(id: string, tenantId: string) {
+  await PayrollModel.findOneAndDelete({ _id: id, tenantId });
 }
 
-export async function approvePayroll(id: string) {
-  return updateStatus(id, 'aprobada');
+export async function approvePayroll(id: string, tenantId: string) {
+  return updateStatus(id, 'aprobada', tenantId);
 }
 
-export async function updateStatus(id: string, status: PayrollStatus) {
-  const doc = await PayrollModel.findById(id);
+export async function updateStatus(id: string, status: PayrollStatus, tenantId: string) {
+  const doc = await PayrollModel.findOne({ _id: id, tenantId });
   if (!doc) return null;
   doc.status = mapStatusIn(status) ?? doc.status;
   await doc.save();
@@ -85,8 +86,8 @@ export async function updateStatus(id: string, status: PayrollStatus) {
 }
 
 // -------- PDF --------
-export async function streamReceiptPdf(id: string, reply: FastifyReply) {
-  const doc = await PayrollModel.findById(id).lean();
+export async function streamReceiptPdf(id: string, tenantId: string, reply: FastifyReply) {
+  const doc = await PayrollModel.findOne({ _id: id, tenantId }).lean();
   if (!doc) return false;
 
   reply.header('Content-Type', 'application/pdf');

@@ -121,10 +121,12 @@ const payrollRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'GET',
     url: '/payrolls',
+    onRequest: [app.authGuard],
     schema: { querystring: QueryList, response: { 200: ListOut } },
     handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
       const { period, employee, status, limit, skip } = req.query as QueryListT;
-      const res = await listPayrolls({ period, employee, status, limit, skip });
+      const res = await listPayrolls({ tenantId, period, employee, status, limit, skip });
 
       (app.log?.info ?? console.log).call(app.log, { msg:'GET /payrolls', query:{ period, employee, status, limit, skip }, total: res.total });
 
@@ -137,10 +139,12 @@ const payrollRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'GET',
     url: '/payrolls/:id',
+    onRequest: [app.authGuard],
     schema: { response: { 200: Payroll, 404: Err } },
     handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
       const { id } = req.params as { id: string };
-      const found = await getById(id);
+      const found = await getById(id, tenantId);
       if (!found) return reply.code(404).send({ error: { code:'NOT_FOUND', message:'Payroll not found' }});
       return reply.send(mapOut(found));
     },
@@ -150,9 +154,11 @@ const payrollRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'POST',
     url: '/payrolls',
+    onRequest: [app.authGuard],
     schema: { body: PayrollCreate, response: { 201: Payroll, 400: Err } },
     handler: async (req, reply) => {
-      const created = await createPayroll(req.body);
+      const tenantId = (req as any).user.tenantId;
+      const created = await createPayroll(req.body, tenantId);
       return reply.code(201).send(mapOut(created));
     },
   });
@@ -161,10 +167,12 @@ const payrollRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'PUT',
     url: '/payrolls/:id',
+    onRequest: [app.authGuard],
     schema: { body: PayrollUpdate, response: { 200: Payroll, 404: Err } },
     handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
       const { id } = req.params as { id: string };
-      const updated = await updateById(id, req.body);
+      const updated = await updateById(id, req.body, tenantId);
       if (!updated) return reply.code(404).send({ error: { code:'NOT_FOUND', message:'Payroll not found' }});
       return reply.send(mapOut(updated));
     },
@@ -174,10 +182,12 @@ const payrollRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'PATCH',
     url: '/payrolls/:id/approve',
+    onRequest: [app.authGuard],
     schema: { response: { 200: Payroll, 404: Err } },
     handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
       const { id } = req.params as { id: string };
-      const updated = await approvePayroll(id);
+      const updated = await approvePayroll(id, tenantId);
       if (!updated) return reply.code(404).send({ error: { code:'NOT_FOUND', message:'Payroll not found' }});
       return reply.send(mapOut(updated));
     },
@@ -187,11 +197,13 @@ const payrollRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'PATCH',
     url: '/payrolls/:id/status',
+    onRequest: [app.authGuard],
     schema: { body: z.object({ status: StatusCompat }), response: { 200: Payroll, 404: Err } },
     handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
       const { id } = req.params as { id: string };
       const { status } = req.body as { status: StatusCompatT };
-      const updated = await updateStatus(id, status);
+      const updated = await updateStatus(id, status, tenantId);
       if (!updated) return reply.code(404).send({ error: { code:'NOT_FOUND', message:'Payroll not found' }});
       return reply.send(mapOut(updated));
     },
@@ -201,9 +213,11 @@ const payrollRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'GET',
     url: '/payrolls/:id/receipt.pdf',
+    onRequest: [app.authGuard],
     handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
       const { id } = req.params as { id: string };
-      const ok = await streamReceiptPdf(id, reply);
+      const ok = await streamReceiptPdf(id, tenantId, reply);
       if (!ok) return reply.code(404).send({ error: { code:'NOT_FOUND', message:'Payroll not found' }});
       return reply; // stream
     },
@@ -213,10 +227,12 @@ const payrollRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'DELETE',
     url: '/payrolls/:id',
+    onRequest: [app.authGuard],
     schema: { response: { 200: z.object({ ok: z.boolean() }), 404: Err } },
     handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
       const { id } = req.params as { id: string };
-      await removePayroll(id);
+      await removePayroll(id, tenantId);
       return reply.send({ ok: true });
     },
   });
