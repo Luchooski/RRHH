@@ -16,6 +16,9 @@ interface CompanyInfo {
   company: {
     name: string;
     slug: string;
+    description?: string;
+    logo?: string;
+    primaryColor?: string;
   };
   vacancies: Vacancy[];
 }
@@ -173,17 +176,30 @@ export function CareersPage() {
     );
   }
 
+  const primaryColor = companyInfo?.company.primaryColor || '#6366f1';
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* Header */}
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
         <div className="container-custom py-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-            {companyInfo.company.name}
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Únete a nuestro equipo
-          </p>
+          <div className="flex items-start gap-6">
+            {companyInfo.company.logo && (
+              <img
+                src={companyInfo.company.logo}
+                alt={`${companyInfo.company.name} logo`}
+                className="w-20 h-20 object-contain rounded-lg"
+              />
+            )}
+            <div className="flex-1">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                {companyInfo.company.name}
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-2">
+                {companyInfo.company.description || 'Únete a nuestro equipo'}
+              </p>
+            </div>
+          </div>
         </div>
       </header>
 

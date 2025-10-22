@@ -16,6 +16,7 @@ import { listVacancies } from '@/features/vacancies/api';
 import type { InterviewDTO } from '@/features/interviews/calendar.schema';
 import type { VacancyDTO } from '@/features/vacancies/vacancy.schema';
 import Empty from '@/components/ui/Empty';
+import { CareersUrlWidget } from '@/components/dashboard/CareersUrlWidget';
 
 export default function DashboardPage() {
   // KPIs (reportes)
@@ -100,6 +101,9 @@ export default function DashboardPage() {
           <KpiCard label="Contratados" value={conv?.hired ?? 0}       icon={<UserCheck className="size-5" />}      tone="green" />
           <KpiCard label="Tiempo de cierre (días)" value={ttc?.avgDays ?? 0} icon={<Timer className="size-5" />} tone="amber" />
         </section>
+
+        {/* Careers URL Widget */}
+        <CareersUrlWidget />
 
         {/* Conversión + Próximas entrevistas */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-3">

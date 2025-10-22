@@ -12,6 +12,17 @@ export interface ITenant extends Document {
     maxEmployees?: number;
     features?: string[];
   };
+  branding?: {
+    logo?: string; // URL to logo image
+    primaryColor?: string; // Hex color code
+    description?: string; // Company description for careers page
+  };
+  analytics?: {
+    totalApplications?: number;
+    applicationsByCareersPage?: number;
+    applicationsThisMonth?: number;
+    lastApplicationDate?: Date;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -62,6 +73,17 @@ const TenantSchema = new Schema<ITenant>(
       maxUsers: { type: Number, default: 5 },
       maxEmployees: { type: Number, default: 50 },
       features: [{ type: String }]
+    },
+    branding: {
+      logo: { type: String },
+      primaryColor: { type: String, match: /^#[0-9A-Fa-f]{6}$/ },
+      description: { type: String, maxlength: 500 }
+    },
+    analytics: {
+      totalApplications: { type: Number, default: 0 },
+      applicationsByCareersPage: { type: Number, default: 0 },
+      applicationsThisMonth: { type: Number, default: 0 },
+      lastApplicationDate: { type: Date }
     }
   },
   {

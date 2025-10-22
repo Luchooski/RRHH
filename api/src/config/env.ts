@@ -34,6 +34,14 @@ export const env = {
   cookieSecure: /^true$/i.test(process.env.COOKIE_SECURE ?? 'false'),
   cookieDomain: process.env.COOKIE_DOMAIN || undefined,
   cookieSignSecret: process.env.COOKIE_SIGN_SECRET || undefined,
+
+  // === SMTP / Email Configuration ===
+  SMTP_HOST: process.env.SMTP_HOST || '',
+  SMTP_PORT: process.env.SMTP_PORT || '587',
+  SMTP_SECURE: process.env.SMTP_SECURE || 'false',
+  SMTP_USER: process.env.SMTP_USER || '',
+  SMTP_PASS: process.env.SMTP_PASS || '',
+  SMTP_FROM: process.env.SMTP_FROM || '',
 };
 
 export const isProd = env.isProd; // 👈 para compat con tus imports

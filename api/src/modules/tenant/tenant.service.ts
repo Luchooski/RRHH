@@ -47,6 +47,11 @@ function mapToOutput(doc: ITenant): TenantOutput {
     status: doc.status,
     plan: doc.plan,
     settings: doc.settings,
+    branding: doc.branding,
+    analytics: doc.analytics ? {
+      ...doc.analytics,
+      lastApplicationDate: doc.analytics.lastApplicationDate?.toISOString()
+    } : undefined,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString()
   };

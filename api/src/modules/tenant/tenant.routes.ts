@@ -17,6 +17,34 @@ import {
 const tenantRoutes: FastifyPluginAsync = async (app) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
 
+  // GET /tenants/me - Obtener tenant del usuario actual
+  r.route({
+    method: 'GET',
+    url: '/tenants/me',
+    schema: {
+      response: {
+        200: TenantOutputSchema,
+        404: ErrorSchema
+      }
+    },
+    onRequest: [app.authGuard],
+    handler: async (req, reply) => {
+      const user = (req as any).user;
+      const tenant = await getTenantById(user.tenantId);
+
+      if (!tenant) {
+        return reply.code(404).send({
+          error: {
+            code: 'TENANT_NOT_FOUND',
+            message: 'Empresa no encontrada'
+          }
+        });
+      }
+
+      return tenant;
+    }
+  });
+
   // POST /tenants/register - Registro de empresa (público)
   r.route({
     method: 'POST',

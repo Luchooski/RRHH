@@ -7,6 +7,7 @@ import { VacancyModel } from '../vacancy/vacancy.model.js';
 import path from 'path';
 import fs from 'fs/promises';
 import { randomBytes } from 'crypto';
+import { sendApplicationConfirmation } from '../../services/email.service.js';
 
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads', 'cvs');
 
@@ -32,7 +33,10 @@ export default async function publicApplicationRoutes(app: FastifyInstance) {
         200: z.object({
           company: z.object({
             name: z.string(),
-            slug: z.string()
+            slug: z.string(),
+            description: z.string().optional(),
+            logo: z.string().optional(),
+            primaryColor: z.string().optional()
           }),
           vacancies: z.array(z.object({
             id: z.string(),
@@ -66,7 +70,10 @@ export default async function publicApplicationRoutes(app: FastifyInstance) {
         return reply.status(200).send({
           company: {
             name: tenant.name,
-            slug: tenant.slug
+            slug: tenant.slug,
+            description: (tenant as any).branding?.description,
+            logo: (tenant as any).branding?.logo,
+            primaryColor: (tenant as any).branding?.primaryColor
           },
           vacancies: vacancies.map(v => ({
             id: String(v._id),
@@ -152,7 +159,8 @@ export default async function publicApplicationRoutes(app: FastifyInstance) {
           return reply.status(400).send({ error: 'Invalid email format' });
         }
 
-        // Si se especificó vacancyId, validar que existe
+        // Si se especificó vacancyId, validar que existe y obtener título
+        let vacancyTitle: string | undefined;
         if (vacancyId) {
           const vacancy = await VacancyModel.findOne({
             _id: vacancyId,
@@ -163,6 +171,8 @@ export default async function publicApplicationRoutes(app: FastifyInstance) {
           if (!vacancy) {
             return reply.status(400).send({ error: 'Vacancy not found or not open' });
           }
+
+          vacancyTitle = vacancy.title;
         }
 
         // Guardar archivo CV
@@ -192,6 +202,33 @@ export default async function publicApplicationRoutes(app: FastifyInstance) {
           { candidateId: String(candidate._id), tenantId, email },
           'Public application submitted'
         );
+
+        // Actualizar analytics del tenant
+        const now = new Date();
+        const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        await Tenant.findByIdAndUpdate(tenantId, {
+          $inc: {
+            'analytics.totalApplications': 1,
+            'analytics.applicationsByCareersPage': 1,
+            'analytics.applicationsThisMonth': 1
+          },
+          $set: {
+            'analytics.lastApplicationDate': now
+          }
+        }).catch((error) => {
+          req.log.error({ error }, 'Failed to update analytics');
+        });
+
+        // Enviar email de confirmación al candidato (no bloquear la respuesta)
+        sendApplicationConfirmation({
+          to: email,
+          candidateName: `${firstName} ${lastName}`,
+          companyName: tenant.name,
+          vacancyTitle,
+        }).catch((error) => {
+          req.log.error({ error }, 'Failed to send confirmation email');
+        });
 
         return reply.status(201).send({
           success: true,

@@ -13,6 +13,17 @@ export const TenantOutputSchema = z.object({
     maxEmployees: z.number().optional(),
     features: z.array(z.string()).optional()
   }).optional(),
+  branding: z.object({
+    logo: z.string().optional(),
+    primaryColor: z.string().optional(),
+    description: z.string().optional()
+  }).optional(),
+  analytics: z.object({
+    totalApplications: z.number().optional(),
+    applicationsByCareersPage: z.number().optional(),
+    applicationsThisMonth: z.number().optional(),
+    lastApplicationDate: z.string().optional()
+  }).optional(),
   createdAt: z.string(),
   updatedAt: z.string()
 });
@@ -43,6 +54,11 @@ export const UpdateTenantSchema = z.object({
     maxUsers: z.number().min(1).max(1000).optional(),
     maxEmployees: z.number().min(1).max(10000).optional(),
     features: z.array(z.string()).optional()
+  }).optional(),
+  branding: z.object({
+    logo: z.string().url().optional(),
+    primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+    description: z.string().max(500).optional()
   }).optional()
 });
 
