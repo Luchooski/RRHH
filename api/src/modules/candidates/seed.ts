@@ -14,7 +14,7 @@ const seedRoutes: FastifyPluginAsync = async (app) => {
     url: '/dev/seed/candidates',
     schema: { querystring: z.object({ count: z.coerce.number().min(1).max(200).default(30) }) },
     handler: async (req, reply) => {
-      if (app.config.nodeEnv !== 'development') return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'Seed only in development' } });
+      if (process.env.NODE_ENV !== 'development') return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'Seed only in development' } });
       const docs = Array.from({ length: req.query.count }).map((_, i) => ({
         name: `Candidato ${i + 1}`,
         email: `candidato${i + 1}@example.com`,

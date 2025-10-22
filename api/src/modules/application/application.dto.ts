@@ -6,6 +6,7 @@ export const ApplicationCreateInput = z.object({
   status: z.enum(['sent','interview','feedback','offer','hired','rejected']).default('sent'),
   notes: z.string().max(2000).optional().nullable(),
 });
+// eslint-disable-next-line no-redeclare
 export type ApplicationCreateInput = z.infer<typeof ApplicationCreateInput>;
 
 export const ApplicationDTO = ApplicationCreateInput.extend({
@@ -13,4 +14,5 @@ export const ApplicationDTO = ApplicationCreateInput.extend({
   createdAt: z.string(),
   updatedAt: z.string(),
 });
+// eslint-disable-next-line no-redeclare
 export type ApplicationDTO = z.infer<typeof ApplicationDTO>;

@@ -126,7 +126,7 @@ const payrollRoutes: FastifyPluginAsync = async (app) => {
       const { period, employee, status, limit, skip } = req.query as QueryListT;
       const res = await listPayrolls({ period, employee, status, limit, skip });
 
-      (app.log?.info ?? console.log).call(app.log, { msg:'GET /payrolls', query:{ period, employee, status, limit, skip }, total: res.total });
+      (app.log?.info ?? console.warn).call(app.log, { msg:'GET /payrolls', query:{ period, employee, status, limit, skip }, total: res.total });
 
       const payload: ListOutT = { items: res.items.map(mapOut), total: res.total, limit: res.limit, skip: res.skip };
       return reply.send(payload);

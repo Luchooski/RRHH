@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { Candidate } from './candidate.model.js';
-import { CandidateCreateInput, CandidateUpdateInput, CandidateQuery, CandidateOut, Stage } from './candidate.dto.js';
+import { CandidateCreateInput, CandidateUpdateInput, CandidateOut, Stage } from './candidate.dto.js';
 import { detectTechnologies } from '../../utils/detect-tech.js';
 import mammoth from 'mammoth';
 import fs from 'node:fs/promises';

@@ -70,7 +70,11 @@ export const CandidateOut = z.object({
   updatedAt: z.string()
 });
 
+// eslint-disable-next-line no-redeclare
 export type CandidateCreateInput = z.infer<typeof CandidateCreateInput>;
+// eslint-disable-next-line no-redeclare
 export type CandidateUpdateInput = z.infer<typeof CandidateUpdateInput>;
+// eslint-disable-next-line no-redeclare
 export type CandidateQuery = z.infer<typeof CandidateQuery>;
+// eslint-disable-next-line no-redeclare
 export type CandidateOut = z.infer<typeof CandidateOut>;

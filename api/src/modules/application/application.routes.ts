@@ -112,7 +112,7 @@ export const applicationRoutes: FastifyPluginAsync = async (app) => {
     }),
     response: { 200: z.object({ ok: z.literal(true) }) , 404: z.object({ error: z.string() }) }
   },
-  handler: async (req, reply) => {
+  handler: async (req, _reply) => {
     await Application.create({
       vacancyId: req.body.vacancyId,
       candidateId: req.body.candidateId,

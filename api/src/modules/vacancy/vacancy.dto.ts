@@ -11,6 +11,7 @@ export const VacancyCreateInput = z.object({
   salaryMax: z.number().int().nonnegative().optional().nullable(),
   description: z.string().max(4000).optional().nullable(),
 });
+// eslint-disable-next-line no-redeclare
 export type VacancyCreateInput = z.infer<typeof VacancyCreateInput>;
 
 export const VacancyDTO = VacancyCreateInput.extend({
@@ -19,4 +20,5 @@ export const VacancyDTO = VacancyCreateInput.extend({
   createdAt: z.string(),
   updatedAt: z.string(),
 });
+// eslint-disable-next-line no-redeclare
 export type VacancyDTO = z.infer<typeof VacancyDTO>;

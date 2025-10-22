@@ -34,7 +34,7 @@ export async function create(req: Request, res: Response, next: NextFunction) {
 export async function patchStatus(req: Request, res: Response, next: NextFunction) {
   try {
     const { status } = PayrollStatusSchema.parse(req.body);
-    const updated = await Service.updateStatus(req.params.id, status as any, (req as any).user?.email ?? 'api');
+    const updated = await Service.updateStatus(req.params.id, status as any);
     if (!updated) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Liquidación no encontrada' } });
     res.json(PayrollOutputSchema.parse(mapId(updated)));
   } catch (err) { next(err); }
