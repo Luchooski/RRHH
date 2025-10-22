@@ -42,10 +42,12 @@ const employeeRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'GET',
     url: '/employees',
+    onRequest: [app.authGuard],
     schema: { response: { 200: ListOut } },
-    handler: async () => {
-      const items = await Employee.find().sort({ createdAt: -1 }).lean({ virtuals: true });
-      const total = await Employee.countDocuments({});
+    handler: async (req) => {
+      const tenantId = (req as any).user.tenantId;
+      const items = await Employee.find({ tenantId }).sort({ createdAt: -1 }).lean({ virtuals: true });
+      const total = await Employee.countDocuments({ tenantId });
       return { items: items.map(mapOut), total };
     },
   });
@@ -53,11 +55,13 @@ const employeeRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'GET',
     url: '/employees/:id',
+    onRequest: [app.authGuard],
     schema: { response: { 200: EmployeeDTO, 404: z.object({ error: z.string() }) } },
     handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
       const { id } = req.params as { id: string };
       if (!Types.ObjectId.isValid(id)) return reply.code(404).send({ error: 'Not found' });
-      const found = await Employee.findById(id).lean({ virtuals: true });
+      const found = await Employee.findOne({ _id: id, tenantId }).lean({ virtuals: true });
       if (!found) return reply.code(404).send({ error: 'Not found' });
       return mapOut(found);
     },
@@ -66,6 +70,7 @@ const employeeRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'POST',
     url: '/employees',
+    onRequest: [app.authGuard],
     schema: {
       body: z.object({
         name: z.string().min(1),
@@ -78,7 +83,8 @@ const employeeRoutes: FastifyPluginAsync = async (app) => {
       response: { 200: EmployeeDTO },
     },
     handler: async (req) => {
-      const doc = await Employee.create(req.body);
+      const tenantId = (req as any).user.tenantId;
+      const doc = await Employee.create({ ...req.body, tenantId });
       return mapOut(doc.toObject({ virtuals: true }));
     },
   });
@@ -86,15 +92,20 @@ const employeeRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'PATCH',
     url: '/employees/:id',
+    onRequest: [app.authGuard],
     schema: {
       body: EmployeeDTO.partial().omit({ id: true, createdAt: true, updatedAt: true }),
       response: { 200: EmployeeDTO, 404: z.object({ error: z.string() }) },
     },
     handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
       const { id } = req.params as { id: string };
       if (!Types.ObjectId.isValid(id)) return reply.code(404).send({ error: 'Not found' });
-      const updated = await Employee.findByIdAndUpdate(id, { $set: req.body }, { new: true, runValidators: true })
-        .lean({ virtuals: true });
+      const updated = await Employee.findOneAndUpdate(
+        { _id: id, tenantId },
+        { $set: req.body },
+        { new: true, runValidators: true }
+      ).lean({ virtuals: true });
       if (!updated) return reply.code(404).send({ error: 'Not found' });
       return mapOut(updated);
     },
@@ -103,11 +114,13 @@ const employeeRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'DELETE',
     url: '/employees/:id',
+    onRequest: [app.authGuard],
     schema: { response: { 200: z.object({ ok: z.boolean() }), 404: z.object({ error: z.string() }) } },
     handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
       const { id } = req.params as { id: string };
       if (!Types.ObjectId.isValid(id)) return reply.code(404).send({ error: 'Not found' });
-      const res = await Employee.findByIdAndDelete(id);
+      const res = await Employee.findOneAndDelete({ _id: id, tenantId });
       if (!res) return reply.code(404).send({ error: 'Not found' });
       return { ok: true };
     },
