@@ -5,12 +5,44 @@ import mongoose from 'mongoose';
 import type { CreateTenantInput, UpdateTenantInput, TenantOutput } from './tenant.dto.js';
 
 /**
+ * Genera un slug único basado en el nombre de la empresa
+ */
+async function generateUniqueSlug(name: string): Promise<string> {
+  // Convertir nombre a slug: "Acme Corp" -> "acme-corp"
+  let baseSlug = name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
+    .replace(/[^a-z0-9\s-]/g, '') // Solo letras, números, espacios y guiones
+    .trim()
+    .replace(/\s+/g, '-') // Espacios a guiones
+    .replace(/-+/g, '-'); // Múltiples guiones a uno solo
+
+  // Si el slug está vacío, usar un valor por defecto
+  if (!baseSlug) {
+    baseSlug = 'company';
+  }
+
+  // Verificar si el slug ya existe y agregar sufijo numérico si es necesario
+  let slug = baseSlug;
+  let counter = 1;
+
+  while (await Tenant.findOne({ slug }).lean()) {
+    slug = `${baseSlug}-${counter}`;
+    counter++;
+  }
+
+  return slug;
+}
+
+/**
  * Mapper de documento Mongoose a DTO de salida
  */
 function mapToOutput(doc: ITenant): TenantOutput {
   return {
     id: doc._id.toString(),
     name: doc.name,
+    slug: doc.slug,
     email: doc.email,
     status: doc.status,
     plan: doc.plan,
@@ -41,11 +73,15 @@ export async function createTenant(input: CreateTenantInput): Promise<{ tenant: 
       throw new Error('USER_EMAIL_EXISTS');
     }
 
+    // Generar slug único
+    const slug = await generateUniqueSlug(input.name);
+
     // Crear tenant
     const [tenant] = await Tenant.create(
       [
         {
           name: input.name,
+          slug,
           email: input.email,
           plan: input.plan,
           status: 'active'

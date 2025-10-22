@@ -19,6 +19,7 @@ export function TenantRegister() {
   const navigate = useNavigate();
   const { push } = useToast();
   const [loading, setLoading] = useState(false);
+  const [registeredSlug, setRegisteredSlug] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
     companyName: '',
     companyEmail: '',
@@ -74,7 +75,11 @@ export function TenantRegister() {
     setLoading(true);
 
     try {
-      await http.post('/api/v1/tenants/register', {
+      const response = await http.post<{
+        tenant: { id: string; name: string; slug: string };
+        userId: string;
+        message: string;
+      }>('/api/v1/tenants/register', {
         name: formData.companyName,
         email: formData.companyEmail,
         adminUser: {
@@ -84,12 +89,13 @@ export function TenantRegister() {
         },
       });
 
+      // Mostrar el slug generado y la URL de careers
+      setRegisteredSlug(response.tenant.slug);
+
       push({
         kind: 'success',
-        message: 'Empresa registrada exitosamente. Por favor inicia sesión.',
+        message: 'Empresa registrada exitosamente.',
       });
-
-      navigate('/login');
     } catch (error: any) {
       push({
         kind: 'error',
@@ -109,6 +115,79 @@ export function TenantRegister() {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
+
+  // Si el registro fue exitoso, mostrar mensaje con la URL de careers
+  if (registeredSlug) {
+    const careersUrl = `${window.location.origin}/careers/${registeredSlug}`;
+
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+        <Card className="w-full max-w-2xl p-8">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-green-100 dark:bg-green-950 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              ¡Registro Exitoso!
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 mb-8">
+              Tu empresa ha sido registrada correctamente.
+            </p>
+
+            <div className="bg-indigo-50 dark:bg-indigo-950 rounded-lg p-6 mb-6 text-left">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                URL de Carreras Pública
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                Comparte esta URL para que candidatos puedan enviar sus CVs:
+              </p>
+              <div className="flex items-center gap-2 bg-white dark:bg-gray-900 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                <input
+                  type="text"
+                  readOnly
+                  value={careersUrl}
+                  className="flex-1 bg-transparent text-sm font-mono text-gray-900 dark:text-white focus:outline-none"
+                  onClick={(e) => e.currentTarget.select()}
+                />
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(careersUrl);
+                    push({ kind: 'success', message: 'URL copiada al portapapeles' });
+                  }}
+                  className="btn btn-sm btn-secondary"
+                >
+                  Copiar
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                Slug de la empresa: <code className="font-mono bg-white dark:bg-gray-900 px-1 py-0.5 rounded">{registeredSlug}</code>
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <Button
+                variant="primary"
+                className="w-full"
+                onClick={() => navigate('/login')}
+              >
+                Ir al Login
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => window.open(careersUrl, '_blank')}
+              >
+                Ver Página de Carreras
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">

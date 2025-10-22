@@ -52,6 +52,9 @@ import { EmployeeProfile } from '../pages/employee-portal/EmployeeProfile';
 import { EmployeePayrolls } from '../pages/employee-portal/EmployeePayrolls';
 import { EmployeeDocuments } from '../pages/employee-portal/EmployeeDocuments';
 
+// Public Careers
+import { CareersPage } from '../pages/CareersPage';
+
 // 404
 import NotFound from '../pages/NotFound';
 
@@ -80,6 +83,7 @@ const router = createBrowserRouter([
     children: [
       { path: '/login', element: <LoginPage /> },
       { path: '/register', element: <TenantRegister /> },
+      { path: '/careers/:companySlug', element: <CareersPage /> },
     ]
   },
   {

@@ -4,6 +4,7 @@ import { z } from 'zod';
 export const TenantOutputSchema = z.object({
   id: z.string(),
   name: z.string(),
+  slug: z.string(),
   email: z.string().email(),
   status: z.enum(['active', 'inactive', 'suspended']),
   plan: z.enum(['free', 'basic', 'professional', 'enterprise']),
