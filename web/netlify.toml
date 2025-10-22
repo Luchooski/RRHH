@@ -1,0 +1,42 @@
+[build]
+  # Build command
+  command = "npm run build"
+
+  # Directory with the build output
+  publish = "dist"
+
+  # Base directory (if different from root)
+  base = "."
+
+# Node version
+[build.environment]
+  NODE_VERSION = "20"
+
+# Redirects for SPA routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+
+# Headers for security and CORS
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Cache static assets
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# API proxy to avoid CORS in development (optional)
+# [[redirects]]
+#   from = "/api/*"
+#   to = "https://your-railway-api.up.railway.app/api/:splat"
+#   status = 200
+#   force = true
