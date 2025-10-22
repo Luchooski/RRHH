@@ -29,14 +29,16 @@ export const interviewRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'GET',
     url: '/interviews',
+    onRequest: [app.authGuard],
     schema: {
       querystring: InterviewQuery,
       response: { 200: InterviewListOutput },
       tags: ['interviews'],
     },
     handler: async (req) => {
+      const tenantId = (req as any).user.tenantId;
       const { from, to, candidateId, vacancyId, page, limit } = req.query;
-      const filter: any = {};
+      const filter: any = { tenantId };
       if (from || to) {
         filter.start = {};
         if (from) filter.start.$gte = new Date(from);
@@ -58,9 +60,11 @@ export const interviewRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'GET',
     url: '/interviews/:id',
+    onRequest: [app.authGuard],
     schema: { params: z.object({ id: z.string() }), response: { 200: InterviewOutput, 404: ErrorDTO } },
     handler: async (req, reply) => {
-      const it = await Interview.findById(req.params.id).lean();
+      const tenantId = (req as any).user.tenantId;
+      const it = await Interview.findOne({ _id: req.params.id, tenantId }).lean();
       if (!it) return reply.code(404).send({ error: 'Not found' });
       return toOut(it);
     }
@@ -70,10 +74,13 @@ export const interviewRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'POST',
     url: '/interviews',
+    onRequest: [app.authGuard],
     schema: { body: InterviewCreateInput, response: { 201: InterviewOutput } },
     handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
       const created = await Interview.create({
         ...req.body,
+        tenantId,
         start: new Date(req.body.start),
         end: new Date(req.body.end),
       });
@@ -85,16 +92,22 @@ export const interviewRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'PATCH',
     url: '/interviews/:id',
+    onRequest: [app.authGuard],
     schema: {
       params: z.object({ id: z.string() }),
       body: InterviewUpdateInput,
       response: { 200: InterviewOutput, 404: ErrorDTO },
     },
     handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
       const changes: any = { ...req.body };
       if (changes.start) changes.start = new Date(changes.start);
       if (changes.end) changes.end = new Date(changes.end);
-      const updated = await Interview.findByIdAndUpdate(req.params.id, { $set: changes }, { new: true }).lean();
+      const updated = await Interview.findOneAndUpdate(
+        { _id: req.params.id, tenantId },
+        { $set: changes },
+        { new: true }
+      ).lean();
       if (!updated) return reply.code(404).send({ error: 'Not found' });
       return toOut(updated);
     },
@@ -104,9 +117,11 @@ export const interviewRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'DELETE',
     url: '/interviews/:id',
+    onRequest: [app.authGuard],
     schema: { params: z.object({ id: z.string() }), response: { 200: OkDTO, 404: ErrorDTO } },
     handler: async (req, reply) => {
-      const deleted = await Interview.findByIdAndDelete(req.params.id).lean();
+      const tenantId = (req as any).user.tenantId;
+      const deleted = await Interview.findOneAndDelete({ _id: req.params.id, tenantId }).lean();
       if (!deleted) return reply.code(404).send({ error: 'Not found' });
       return { ok: true as const };
     },
