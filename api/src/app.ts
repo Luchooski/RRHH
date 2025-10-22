@@ -10,6 +10,14 @@ import { notFound } from './middlewares/not-found.js';
 import candidateRoutes from './modules/candidates/candidate.routes.js'; // 👈 default export .js
 import seedRoutes from './modules/candidates/seed.js';
 import authRoutes from './modules/auth/auth.routes.js';
+import vacancyRoutes from './modules/vacancy/vacancy.routes.js';
+import interviewRoutes from './modules/interview/interview.routes.js';
+import { applicationRoutes } from './modules/application/application.routes.js';
+import employeeRoutes from './modules/employee/employee.routes.js';
+import payrollRoutes from './modules/payroll/payroll.routes.js';
+import clientRoutes from './modules/client/client.routes.js';
+import reportsRoutes from './modules/reports/reports.routes.js';
+import healthRoutes from './modules/health/health.routes.js';
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -66,6 +74,30 @@ export async function buildApp() {
 
   await app.withTypeProvider<ZodTypeProvider>().register(candidateRoutes, { prefix: '/api/v1' });
   app.log.info('candidateRoutes registered at /api/v1');
+
+  await app.withTypeProvider<ZodTypeProvider>().register(vacancyRoutes, { prefix: '/api/v1' });
+  app.log.info('vacancyRoutes registered at /api/v1');
+
+  await app.withTypeProvider<ZodTypeProvider>().register(interviewRoutes, { prefix: '/api/v1' });
+  app.log.info('interviewRoutes registered at /api/v1');
+
+  await app.withTypeProvider<ZodTypeProvider>().register(applicationRoutes, { prefix: '/api/v1' });
+  app.log.info('applicationRoutes registered at /api/v1');
+
+  await app.withTypeProvider<ZodTypeProvider>().register(employeeRoutes, { prefix: '/api/v1' });
+  app.log.info('employeeRoutes registered at /api/v1');
+
+  await app.withTypeProvider<ZodTypeProvider>().register(payrollRoutes, { prefix: '/api/v1' });
+  app.log.info('payrollRoutes registered at /api/v1');
+
+  await app.withTypeProvider<ZodTypeProvider>().register(clientRoutes, { prefix: '/api/v1' });
+  app.log.info('clientRoutes registered at /api/v1');
+
+  await app.withTypeProvider<ZodTypeProvider>().register(reportsRoutes, { prefix: '/api/v1' });
+  app.log.info('reportsRoutes registered at /api/v1');
+
+  await app.withTypeProvider<ZodTypeProvider>().register(healthRoutes, { prefix: '/api/v1' });
+  app.log.info('healthRoutes registered at /api/v1');
 
   if (env.isDev) await app.register(seedRoutes, { prefix: '/api/v1' });
 
