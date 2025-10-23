@@ -5,7 +5,8 @@ const UserSchema = new Schema(
     email: { type: String, required: true, unique: true, index: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
     name: { type: String, required: true, trim: true },
-    role: { type: String, default: 'hr', enum: ['superadmin', 'admin', 'hr', 'recruiter', 'employee'], index: true },
+    role: { type: String, default: 'hr', index: true }, // Permitir roles personalizados (sin enum)
+    permissions: [{ type: String }], // Permisos personalizados adicionales
     tenantId: { type: String, required: true, index: true },
     refreshToken: { type: String, select: false }, // No se devuelve por defecto en queries
     refreshTokenExpiry: { type: Date, select: false },
