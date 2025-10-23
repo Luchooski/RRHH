@@ -8,6 +8,9 @@ import {
   getAttachmentById,
   deleteAttachment,
   getAttachmentFile,
+  createVersion,
+  getVersionHistory,
+  searchAttachments,
 } from './attachment.service.js';
 
 const ErrorDTO = z.object({ error: z.string() });
@@ -96,7 +99,7 @@ export const attachmentRoutes: FastifyPluginAsync = async (app) => {
       });
 
       return reply.code(201).send({
-        id: String(attachment.id),
+        id: String(attachment._id),
         employeeId: attachment.employeeId,
         filename: attachment.filename,
         storedFilename: attachment.storedFilename,
@@ -104,7 +107,7 @@ export const attachmentRoutes: FastifyPluginAsync = async (app) => {
         mimeType: attachment.mimeType,
         size: attachment.size,
         uploadedBy: attachment.uploadedBy,
-        description: attachment.description,
+        description: attachment.description || undefined,
         createdAt: new Date(attachment.createdAt).toISOString(),
         updatedAt: new Date(attachment.updatedAt).toISOString(),
       });
@@ -150,7 +153,7 @@ export const attachmentRoutes: FastifyPluginAsync = async (app) => {
           mimeType: a.mimeType,
           size: a.size,
           uploadedBy: a.uploadedBy,
-          description: a.description,
+          description: a.description || undefined,
           createdAt: new Date(a.createdAt).toISOString(),
           updatedAt: new Date(a.updatedAt).toISOString(),
         })),
@@ -206,6 +209,194 @@ export const attachmentRoutes: FastifyPluginAsync = async (app) => {
       }
 
       return { ok: true as const };
+    },
+  });
+
+  // POST /attachments/:id/versions - Create new version
+  r.route({
+    method: 'POST',
+    url: '/attachments/:id/versions',
+    onRequest: [app.authGuard],
+    schema: {
+      params: z.object({ id: z.string() }),
+      querystring: z.object({
+        versionNotes: z.string().optional(),
+      }),
+      response: {
+        201: AttachmentOutputSchema,
+        400: ErrorDTO,
+        404: ErrorDTO,
+      },
+    },
+    handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
+      const userId = (req as any).user.id;
+      const { id } = req.params;
+      const { versionNotes } = req.query;
+
+      // Get uploaded file
+      const data = await req.file();
+      if (!data) {
+        return reply.code(400).send({ error: 'No file uploaded' });
+      }
+
+      const fileBuffer = await data.toBuffer();
+
+      // Validate file size (max 10MB)
+      if (fileBuffer.length > 10 * 1024 * 1024) {
+        return reply.code(400).send({ error: 'File too large. Maximum size is 10MB' });
+      }
+
+      try {
+        const newVersion = await createVersion({
+          parentId: id,
+          tenantId,
+          uploadedBy: userId,
+          fileBuffer,
+          versionNotes,
+        });
+
+        return reply.code(201).send({
+          id: String(newVersion._id),
+          employeeId: newVersion.employeeId,
+          filename: newVersion.filename,
+          storedFilename: newVersion.storedFilename,
+          fileType: newVersion.fileType as any,
+          mimeType: newVersion.mimeType,
+          size: newVersion.size,
+          uploadedBy: newVersion.uploadedBy,
+          description: newVersion.description || undefined,
+          createdAt: new Date(newVersion.createdAt).toISOString(),
+          updatedAt: new Date(newVersion.updatedAt).toISOString(),
+        });
+      } catch (error: any) {
+        return reply.code(404).send({ error: error.message || 'Error creating version' });
+      }
+    },
+  });
+
+  // GET /attachments/:id/versions - Get version history
+  r.route({
+    method: 'GET',
+    url: '/attachments/:id/versions',
+    onRequest: [app.authGuard],
+    schema: {
+      params: z.object({ id: z.string() }),
+      response: {
+        200: z.object({
+          items: z.array(AttachmentOutputSchema.extend({
+            version: z.number(),
+            parentId: z.string().nullable(),
+            isLatest: z.boolean(),
+            versionNotes: z.string().optional(),
+          })),
+          total: z.number(),
+        }),
+        404: ErrorDTO,
+      },
+    },
+    handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
+      const { id } = req.params;
+
+      const versions = await getVersionHistory(id, tenantId);
+
+      return {
+        items: versions.map(v => ({
+          id: String(v._id),
+          employeeId: v.employeeId,
+          filename: v.filename,
+          storedFilename: v.storedFilename,
+          fileType: v.fileType as any,
+          mimeType: v.mimeType,
+          size: v.size,
+          uploadedBy: v.uploadedBy,
+          description: v.description || undefined,
+          version: v.version || 1,
+          parentId: v.parentId ? String(v.parentId) : null,
+          isLatest: v.isLatest || false,
+          versionNotes: v.versionNotes || undefined,
+          createdAt: new Date(v.createdAt).toISOString(),
+          updatedAt: new Date(v.updatedAt).toISOString(),
+        })),
+        total: versions.length,
+      };
+    },
+  });
+
+  // GET /attachments/search - Advanced search
+  r.route({
+    method: 'GET',
+    url: '/attachments/search',
+    onRequest: [app.authGuard],
+    schema: {
+      querystring: z.object({
+        employeeId: z.string().optional(),
+        fileType: FileTypeEnum.optional(),
+        tags: z.string().optional(), // Comma-separated
+        searchText: z.string().optional(),
+        onlyLatest: z.coerce.boolean().optional().default(true),
+      }),
+      response: {
+        200: AttachmentListSchema,
+      },
+    },
+    handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
+      const { employeeId, fileType, tags, searchText, onlyLatest } = req.query;
+
+      const tagArray = tags ? tags.split(',').map(t => t.trim()) : undefined;
+
+      const attachments = await searchAttachments({
+        tenantId,
+        employeeId,
+        fileType,
+        tags: tagArray,
+        searchText,
+        onlyLatest,
+      });
+
+      return {
+        items: attachments.map(a => ({
+          id: String(a._id),
+          employeeId: a.employeeId,
+          filename: a.filename,
+          storedFilename: a.storedFilename,
+          fileType: a.fileType as any,
+          mimeType: a.mimeType,
+          size: a.size,
+          uploadedBy: a.uploadedBy,
+          description: a.description || undefined,
+          createdAt: new Date(a.createdAt).toISOString(),
+          updatedAt: new Date(a.updatedAt).toISOString(),
+        })),
+        total: attachments.length,
+      };
+    },
+  });
+
+  // GET /attachments/:id/preview - Preview document
+  r.route({
+    method: 'GET',
+    url: '/attachments/:id/preview',
+    onRequest: [app.authGuard],
+    schema: {
+      params: z.object({ id: z.string() }),
+    },
+    handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
+      const { id } = req.params;
+
+      const file = await getAttachmentFile(id, tenantId);
+
+      if (!file) {
+        return reply.code(404).send({ error: 'Attachment not found' });
+      }
+
+      // For preview, use inline disposition instead of attachment
+      reply.header('Content-Type', file.mimeType);
+      reply.header('Content-Disposition', `inline; filename="${file.filename}"`);
+      return reply.send(file.buffer);
     },
   });
 };

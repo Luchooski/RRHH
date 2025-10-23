@@ -16,6 +16,16 @@ const AttachmentSchema = new Schema({
   path: { type: String, required: true }, // Storage path
   uploadedBy: { type: String, required: true }, // User ID who uploaded
   description: { type: String }, // Optional description
+
+  // Versioning fields
+  version: { type: Number, default: 1, index: true }, // Version number
+  parentId: { type: Schema.Types.ObjectId, ref: 'Attachment', default: null, index: true }, // Original document reference
+  isLatest: { type: Boolean, default: true, index: true }, // Is this the latest version?
+  versionNotes: { type: String }, // Notes about this version
+
+  // Metadata for search
+  tags: [{ type: String, index: true }], // Tags for categorization
+  searchableText: { type: String, index: 'text' }, // Text for full-text search
 }, {
   timestamps: true,
   versionKey: false,
@@ -24,6 +34,9 @@ const AttachmentSchema = new Schema({
 // Compound indexes for efficient queries
 AttachmentSchema.index({ tenantId: 1, employeeId: 1, createdAt: -1 });
 AttachmentSchema.index({ tenantId: 1, fileType: 1 });
+AttachmentSchema.index({ tenantId: 1, employeeId: 1, isLatest: 1 }); // For latest version queries
+AttachmentSchema.index({ parentId: 1, version: 1 }); // For version history
+AttachmentSchema.index({ tenantId: 1, tags: 1 }); // For tag-based searches
 
 AttachmentSchema.virtual('id').get(function (this: { _id: mongoose.Types.ObjectId }) {
   return this._id?.toString();
