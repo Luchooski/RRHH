@@ -55,3 +55,14 @@ export function authGuard() {
     };
   };
 }
+
+// Helper para obtener usuario de la request
+export function getReqUser(req: any) {
+  if (!req.user) throw new Error('Unauthorized');
+  return req.user as { id: string; email: string; role: string; tenantId: string; name: string };
+}
+
+// Helper para verificar si el usuario tiene un rol específico
+export function hasRole(user: { role: string }, allowedRoles: string[]): boolean {
+  return allowedRoles.includes(user.role);
+}

@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { env } from '../../config/env';
+import { env } from '../../config/env.js';
 
 // Tipos de templates de emails
 export type EmailTemplate =

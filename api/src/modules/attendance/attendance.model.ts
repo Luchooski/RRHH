@@ -42,6 +42,15 @@ export interface IAttendance extends Document {
 
   createdAt: Date;
   updatedAt: Date;
+
+  // Instance methods
+  calculateHours(regularHoursPerDay?: number): void;
+  checkIfLate(expectedCheckIn: Date): void;
+}
+
+// Interface for static methods
+export interface IAttendanceModel extends Model<IAttendance> {
+  getSummary(tenantId: string, employeeId: string, startDate: Date, endDate: Date): Promise<any>;
 }
 
 const LocationSchema = new Schema({
@@ -166,4 +175,4 @@ AttendanceSchema.statics.getSummary = async function(
   return summary;
 };
 
-export const Attendance = model<IAttendance, Model<IAttendance>>('Attendance', AttendanceSchema);
+export const Attendance = model<IAttendance, IAttendanceModel>('Attendance', AttendanceSchema);
