@@ -14,6 +14,7 @@ import vacancyRoutes from './modules/vacancy/vacancy.routes.js';
 import interviewRoutes from './modules/interview/interview.routes.js';
 import { applicationRoutes } from './modules/application/application.routes.js';
 import employeeRoutes from './modules/employee/employee.routes.js';
+import employeeImportExportRoutes from './modules/employee/employee-import-export.routes.js';
 import payrollRoutes from './modules/payroll/payroll.routes.js';
 import clientRoutes from './modules/client/client.routes.js';
 import reportsRoutes from './modules/reports/reports.routes.js';
@@ -100,6 +101,9 @@ export async function buildApp() {
 
   await app.withTypeProvider<ZodTypeProvider>().register(employeeRoutes, { prefix: '/api/v1' });
   app.log.info('employeeRoutes registered at /api/v1');
+
+  await app.withTypeProvider<ZodTypeProvider>().register(employeeImportExportRoutes, { prefix: '/api/v1' });
+  app.log.info('employeeImportExportRoutes registered at /api/v1');
 
   await app.withTypeProvider<ZodTypeProvider>().register(payrollRoutes, { prefix: '/api/v1' });
   app.log.info('payrollRoutes registered at /api/v1');
