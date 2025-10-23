@@ -29,6 +29,7 @@ import notificationRoutes from './modules/notification/notification.routes.js';
 import attendanceRoutes from './modules/attendance/attendance.routes.js';
 import permissionsRoutes from './modules/permissions/permissions.routes.js';
 import benefitsRoutes from './modules/benefits/benefits.routes.js';
+import analyticsRoutes from './modules/analytics/analytics.routes.js';
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod';
 import { authGuard } from './middlewares/auth.js';
 import fs from 'node:fs/promises';
@@ -141,6 +142,9 @@ export async function buildApp() {
 
   await app.withTypeProvider<ZodTypeProvider>().register(benefitsRoutes, { prefix: '/api/v1' });
   app.log.info('benefitsRoutes registered at /api/v1');
+
+  await app.withTypeProvider<ZodTypeProvider>().register(analyticsRoutes, { prefix: '/api/v1' });
+  app.log.info('analyticsRoutes registered at /api/v1');
 
   // Public routes (no authentication required)
   await app.withTypeProvider<ZodTypeProvider>().register(publicApplicationRoutes, { prefix: '/api/v1/public' });
