@@ -18,6 +18,28 @@ export const TenantOutputSchema = z.object({
     primaryColor: z.string().optional(),
     description: z.string().optional()
   }).optional(),
+  regional: z.object({
+    language: z.string().optional(),
+    country: z.string().optional(),
+    timezone: z.string().optional(),
+    currency: z.string().optional(),
+    dateFormat: z.string().optional(),
+    timeFormat: z.enum(['12h', '24h']).optional(),
+    firstDayOfWeek: z.number().optional(),
+    numberFormat: z.object({
+      decimalSeparator: z.string().optional(),
+      thousandsSeparator: z.string().optional()
+    }).optional()
+  }).optional(),
+  policies: z.object({
+    vacationDaysPerYear: z.number().optional(),
+    sickDaysPerYear: z.number().optional(),
+    workingHoursPerDay: z.number().optional(),
+    workingDaysPerWeek: z.number().optional(),
+    overtimeMultiplier: z.number().optional(),
+    lateToleranceMinutes: z.number().optional(),
+    autoApproveLeaves: z.boolean().optional()
+  }).optional(),
   analytics: z.object({
     totalApplications: z.number().optional(),
     applicationsByCareersPage: z.number().optional(),
@@ -59,6 +81,28 @@ export const UpdateTenantSchema = z.object({
     logo: z.string().url().optional(),
     primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
     description: z.string().max(500).optional()
+  }).optional(),
+  regional: z.object({
+    language: z.string().regex(/^[a-z]{2}$/).optional(),
+    country: z.string().regex(/^[A-Z]{2}$/).optional(),
+    timezone: z.string().optional(),
+    currency: z.string().regex(/^[A-Z]{3}$/).optional(),
+    dateFormat: z.string().optional(),
+    timeFormat: z.enum(['12h', '24h']).optional(),
+    firstDayOfWeek: z.number().min(0).max(6).optional(),
+    numberFormat: z.object({
+      decimalSeparator: z.string().optional(),
+      thousandsSeparator: z.string().optional()
+    }).optional()
+  }).optional(),
+  policies: z.object({
+    vacationDaysPerYear: z.number().min(0).max(365).optional(),
+    sickDaysPerYear: z.number().min(0).max(365).optional(),
+    workingHoursPerDay: z.number().min(1).max(24).optional(),
+    workingDaysPerWeek: z.number().min(1).max(7).optional(),
+    overtimeMultiplier: z.number().min(1.0).max(3.0).optional(),
+    lateToleranceMinutes: z.number().min(0).max(60).optional(),
+    autoApproveLeaves: z.boolean().optional()
   }).optional()
 });
 
