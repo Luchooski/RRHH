@@ -20,6 +20,7 @@ export function EmployeeLayout() {
     { to: '/employee/documents', label: 'Mis Documentos', icon: '📄' },
     { to: '/employee/leaves', label: 'Mis Licencias', icon: '🏖️' },
     { to: '/employee/attendance', label: 'Mi Asistencia', icon: '🕐' },
+    { to: '/employee/benefits', label: 'Mis Beneficios', icon: '🎁' },
   ];
 
   return (
