@@ -3,7 +3,7 @@ import Topbar from '../components/Topbar';
 import { useEffect, useState } from 'react';
 import HistoryDrawer from '../features/history/HistoryDrawer';
 import SidebarItem from '../components/SidebarItem';
-import { Home,BarChart3, Users, CalendarClock,CalendarDays, Upload, IdCard, Receipt, Briefcase, Building2, Clock3, History, ClipboardCheck, Gift } from 'lucide-react';
+import { Home,BarChart3, Users, CalendarClock,CalendarDays, Upload, IdCard, Receipt, Briefcase, Building2, Clock3, History, ClipboardCheck, Gift, TrendingUp } from 'lucide-react';
 import SkipLink from '../components/skipLink';
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
 
@@ -20,6 +20,7 @@ const NAV = [
   { to: '/agenda',     label: 'Agenda',     icon: <CalendarDays className="size-4" /> },
   { to: '/vacantes',     label: 'Vacantes',      icon: <Briefcase size={18}/> },
   { to: '/reportes',   label: 'Reportes',   icon: <BarChart3 className="size-4" /> },
+  { to: '/analiticas',   label: 'Analíticas',    icon: <TrendingUp size={18}/> },
   { to: '/horarios',     label: 'Horarios',      icon: <Clock3 size={18}/> },
   { to: '/historial',    label: 'Historial',     icon: <History size={18}/> },
 ];

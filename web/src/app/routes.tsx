@@ -7,6 +7,7 @@ import ResetPasswordPage from '../features/auth/ResetPasswordPage';
 
 // Dashboard
 import DashboardPage from '../features/dashboard/DashboardPage';
+import AnalyticsDashboardPage from '../features/analytics/DashboardPage';
 
 // Candidatos (NUEVOS imports correctos)
 import CandidatesPage from '@/features/candidates/CandidatePage';
@@ -150,6 +151,9 @@ const router = createBrowserRouter([
 
       // Reportes
       { path: 'reportes', element: <ReportsPage /> },
+
+      // Analíticas
+      { path: 'analiticas', element: <AnalyticsDashboardPage /> },
 
       // Configuración de Empresa
       { path: 'configuracion', element: <TenantSettings /> },
