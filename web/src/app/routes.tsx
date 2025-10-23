@@ -40,6 +40,7 @@ import EmployeeBenefitsPage from '../features/benefits/EmployeeBenefitsPage';
 
 // Liquidaciones
 import PayrollPage from '../features/payroll/PayrollPage';
+import PayrollReportsPage from '../features/payroll/PayrollReportsPage';
 
 // Horarios
 import SchedulesPage from '../features/schedules/SchedulesPage';
@@ -139,6 +140,7 @@ const router = createBrowserRouter([
       { path: 'asistencias', element: <AttendanceReportsPage /> },
       { path: 'beneficios', element: <BenefitsManagementPage /> },
       { path: 'liquidaciones', element: <PayrollPage /> },
+      { path: 'payroll/reports', element: <PayrollReportsPage /> },
       { path: 'horarios', element: <SchedulesPage /> },
 
       // Clientes

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   listPayrolls, getById, createPayroll, updateById, removePayroll, approvePayroll, updateStatus, streamReceiptPdf,
+  createPayrollWithAutoCalc, batchCreatePayrolls, getPayrollSummaryReport, getTaxesReport,
 } from './payroll.service.js';
 
 // ---------- Zod ----------
@@ -234,6 +235,163 @@ const payrollRoutes: FastifyPluginAsync = async (app) => {
       const { id } = req.params as { id: string };
       await removePayroll(id, tenantId);
       return reply.send({ ok: true });
+    },
+  });
+
+  // ========== NEW ENDPOINTS: Auto-calc & Batch ===========
+
+  // AUTO-CREATE with auto-calculation
+  r.route({
+    method: 'POST',
+    url: '/payrolls/auto-create',
+    onRequest: [app.authGuard],
+    schema: {
+      body: z.object({
+        employeeId: z.string(),
+        period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+        includeAutoCalc: z.boolean().default(true),
+        options: z.object({
+          includeOvertime: z.boolean().optional(),
+          includePresenteeism: z.boolean().optional(),
+          includeAbsenceDeductions: z.boolean().optional(),
+          includeBenefitsDeductions: z.boolean().optional(),
+          overtimeRate: z.number().optional(),
+          absenceDeductionRate: z.number().optional(),
+        }).optional(),
+      }),
+      response: { 201: Payroll, 400: Err },
+    },
+    handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
+      const { employeeId, period, includeAutoCalc, options } = req.body as any;
+
+      try {
+        const payroll = await createPayrollWithAutoCalc({
+          tenantId,
+          employeeId,
+          period,
+          includeAutoCalc,
+          options,
+        });
+        return reply.code(201).send(mapOut(payroll));
+      } catch (error: any) {
+        return reply.code(400).send({
+          error: { code: 'AUTO_CREATE_ERROR', message: error.message || 'Failed to create payroll' },
+        });
+      }
+    },
+  });
+
+  // BATCH CREATE
+  r.route({
+    method: 'POST',
+    url: '/payrolls/batch',
+    onRequest: [app.authGuard],
+    schema: {
+      body: z.object({
+        period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+        employeeIds: z.array(z.string()).optional(),
+        includeAutoCalc: z.boolean().default(true),
+        options: z.object({
+          includeOvertime: z.boolean().optional(),
+          includePresenteeism: z.boolean().optional(),
+          includeAbsenceDeductions: z.boolean().optional(),
+          includeBenefitsDeductions: z.boolean().optional(),
+          overtimeRate: z.number().optional(),
+          absenceDeductionRate: z.number().optional(),
+        }).optional(),
+      }),
+      response: {
+        200: z.object({
+          total: z.number(),
+          created: z.number(),
+          errors: z.array(z.object({
+            employeeId: z.string(),
+            employeeName: z.string(),
+            error: z.string(),
+          })),
+          payrolls: z.array(Payroll),
+        }),
+        400: Err,
+      },
+    },
+    handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
+      const { period, employeeIds, includeAutoCalc, options } = req.body as any;
+
+      try {
+        const results = await batchCreatePayrolls({
+          tenantId,
+          period,
+          employeeIds,
+          includeAutoCalc,
+          options,
+        });
+
+        return reply.send({
+          total: results.total,
+          created: results.created,
+          errors: results.errors,
+          payrolls: results.payrolls.map(mapOut),
+        });
+      } catch (error: any) {
+        return reply.code(400).send({
+          error: { code: 'BATCH_CREATE_ERROR', message: error.message || 'Failed to batch create' },
+        });
+      }
+    },
+  });
+
+  // SUMMARY REPORT
+  r.route({
+    method: 'GET',
+    url: '/payrolls/reports/summary',
+    onRequest: [app.authGuard],
+    schema: {
+      querystring: z.object({
+        period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+        groupBy: z.enum(['department', 'type', 'none']).optional(),
+      }),
+      response: { 200: z.any(), 400: Err },
+    },
+    handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
+      const { period, groupBy } = req.query as any;
+
+      try {
+        const report = await getPayrollSummaryReport({ tenantId, period, groupBy });
+        return reply.send(report);
+      } catch (error: any) {
+        return reply.code(400).send({
+          error: { code: 'REPORT_ERROR', message: error.message || 'Failed to generate report' },
+        });
+      }
+    },
+  });
+
+  // TAXES REPORT
+  r.route({
+    method: 'GET',
+    url: '/payrolls/reports/taxes',
+    onRequest: [app.authGuard],
+    schema: {
+      querystring: z.object({
+        period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+      }),
+      response: { 200: z.any(), 400: Err },
+    },
+    handler: async (req, reply) => {
+      const tenantId = (req as any).user.tenantId;
+      const { period } = req.query as any;
+
+      try {
+        const report = await getTaxesReport({ tenantId, period });
+        return reply.send(report);
+      } catch (error: any) {
+        return reply.code(400).send({
+          error: { code: 'TAXES_REPORT_ERROR', message: error.message || 'Failed to generate taxes report' },
+        });
+      }
     },
   });
 };
