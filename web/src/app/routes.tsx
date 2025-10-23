@@ -74,6 +74,10 @@ import { CareersPage } from '../pages/CareersPage';
 // Tenant Settings
 import { TenantSettings } from '../pages/TenantSettings';
 
+// RBAC
+import RolesManagementPage from '../features/rbac/RolesManagementPage';
+import PermissionsViewerPage from '../features/rbac/PermissionsViewerPage';
+
 // 404
 import NotFound from '../pages/NotFound';
 
@@ -157,6 +161,10 @@ const router = createBrowserRouter([
 
       // Configuración de Empresa
       { path: 'configuracion', element: <TenantSettings /> },
+
+      // RBAC - Roles y Permisos
+      { path: 'roles', element: <RolesManagementPage /> },
+      { path: 'mis-permisos', element: <PermissionsViewerPage /> },
 
       // Historial (placeholder, si querés una página dedicada)
       { path: 'historial', element: <DashboardPage /> },
