@@ -19,6 +19,7 @@ export function EmployeeLayout() {
     { to: '/employee/payrolls', label: 'Recibos de Pago', icon: '💰' },
     { to: '/employee/documents', label: 'Mis Documentos', icon: '📄' },
     { to: '/employee/leaves', label: 'Mis Licencias', icon: '🏖️' },
+    { to: '/employee/attendance', label: 'Mi Asistencia', icon: '🕐' },
   ];
 
   return (

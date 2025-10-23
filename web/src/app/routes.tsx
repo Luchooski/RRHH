@@ -29,6 +29,10 @@ import EmployeeCreatePage from '../features/employees/EmployeeCreatePage';
 import LeavesManagementPage from '../features/leaves/LeavesManagementPage';
 import LeaveRequestPage from '../features/leaves/LeaveRequestPage';
 
+// Asistencias
+import AttendanceReportsPage from '../features/attendance/AttendanceReportsPage';
+import AttendanceTrackingPage from '../features/attendance/AttendanceTrackingPage';
+
 // Liquidaciones
 import PayrollPage from '../features/payroll/PayrollPage';
 
@@ -123,6 +127,7 @@ const router = createBrowserRouter([
       { path: 'empleados', element: <EmployeesPage /> },
       { path: 'empleados/nuevo', element: <EmployeeCreatePage /> },
       { path: 'licencias', element: <LeavesManagementPage /> },
+      { path: 'asistencias', element: <AttendanceReportsPage /> },
       { path: 'liquidaciones', element: <PayrollPage /> },
       { path: 'horarios', element: <SchedulesPage /> },
 
@@ -159,6 +164,7 @@ const router = createBrowserRouter([
       { path: 'payrolls', element: <EmployeePayrolls /> },
       { path: 'documents', element: <EmployeeDocuments /> },
       { path: 'leaves', element: <LeaveRequestPage /> },
+      { path: 'attendance', element: <AttendanceTrackingPage /> },
     ],
   },
 ]);
