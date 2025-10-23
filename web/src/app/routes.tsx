@@ -2,6 +2,8 @@ import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import App from './App';
 import { useAuth } from '../features/auth/auth';
 import LoginPage from '../features/auth/LoginPage';
+import ForgotPasswordPage from '../features/auth/ForgotPasswordPage';
+import ResetPasswordPage from '../features/auth/ResetPasswordPage';
 
 // Dashboard
 import DashboardPage from '../features/dashboard/DashboardPage';
@@ -21,6 +23,7 @@ import UploadCVPage from '../features/uploads/UploadCVPage';
 
 // Empleados
 import EmployeesPage from '../features/employees/EmployeesPage';
+import EmployeeCreatePage from '../features/employees/EmployeeCreatePage';
 
 // Liquidaciones
 import PayrollPage from '../features/payroll/PayrollPage';
@@ -85,6 +88,8 @@ const router = createBrowserRouter([
     element: <PublicLayout />,
     children: [
       { path: '/login', element: <LoginPage /> },
+      { path: '/forgot-password', element: <ForgotPasswordPage /> },
+      { path: '/reset-password', element: <ResetPasswordPage /> },
       { path: '/register', element: <TenantRegister /> },
       { path: '/careers/:companySlug', element: <CareersPage /> },
     ]
@@ -112,6 +117,7 @@ const router = createBrowserRouter([
 
       // Empleados / Liquidaciones / Horarios
       { path: 'empleados', element: <EmployeesPage /> },
+      { path: 'empleados/nuevo', element: <EmployeeCreatePage /> },
       { path: 'liquidaciones', element: <PayrollPage /> },
       { path: 'horarios', element: <SchedulesPage /> },
 

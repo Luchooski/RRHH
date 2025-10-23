@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Toolbar } from '@/components/ui/Toolbar';
 import { Card, CardHeader, CardTitle, CardBody, CardFooter } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -9,7 +10,7 @@ import { useCreateEmployee, useDeleteEmployee, useEmployees } from './hooks';
 import type { EmployeeCreateInput } from './dto';
 import { KpiCard } from '@/components/ui/KpiCard';
 import { TableSkeleton } from '@/components/ui/Skeleton';
-import { Users, Clock, Banknote } from 'lucide-react';
+import { Users, Clock, Banknote, UserPlus } from 'lucide-react';
 
 function pesos(n: number) {
   if (!Number.isFinite(n)) return '$ 0';
@@ -21,6 +22,7 @@ function fmtDate(s: string) {
 }
 
 export default function EmployeesPage() {
+  const navigate = useNavigate();
   const [limit, setLimit] = useState(20);
   const [skip, setSkip] = useState(0);
 
@@ -73,6 +75,10 @@ export default function EmployeesPage() {
         title="Empleados"
         right={
           <div className="flex items-center gap-2">
+            <Button onClick={() => navigate('/empleados/nuevo')} variant="primary" className="min-w-[140px]">
+              <UserPlus size={18} />
+              Nuevo empleado
+            </Button>
             <Button onClick={() => window.location.reload()} className="min-w-[96px]">
               {isFetching ? 'Actualizando…' : 'Refrescar'}
             </Button>
