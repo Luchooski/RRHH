@@ -24,6 +24,7 @@ import attachmentRoutes from './modules/attachment/attachment.routes.js';
 import publicApplicationRoutes from './modules/public-application/public-application.routes.js';
 import leaveRoutes from './modules/leave/leave.routes.js';
 import auditRoutes from './modules/audit/audit.routes.js';
+import notificationRoutes from './modules/notification/notification.routes.js';
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod';
 import { authGuard } from './middlewares/auth.js';
 import fs from 'node:fs/promises';
@@ -121,6 +122,9 @@ export async function buildApp() {
 
   await app.withTypeProvider<ZodTypeProvider>().register(auditRoutes, { prefix: '/api/v1' });
   app.log.info('auditRoutes registered at /api/v1');
+
+  await app.withTypeProvider<ZodTypeProvider>().register(notificationRoutes, { prefix: '/api/v1' });
+  app.log.info('notificationRoutes registered at /api/v1');
 
   // Public routes (no authentication required)
   await app.withTypeProvider<ZodTypeProvider>().register(publicApplicationRoutes, { prefix: '/api/v1/public' });
