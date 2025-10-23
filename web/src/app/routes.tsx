@@ -25,6 +25,10 @@ import UploadCVPage from '../features/uploads/UploadCVPage';
 import EmployeesPage from '../features/employees/EmployeesPage';
 import EmployeeCreatePage from '../features/employees/EmployeeCreatePage';
 
+// Licencias
+import LeavesManagementPage from '../features/leaves/LeavesManagementPage';
+import LeaveRequestPage from '../features/leaves/LeaveRequestPage';
+
 // Liquidaciones
 import PayrollPage from '../features/payroll/PayrollPage';
 
@@ -118,6 +122,7 @@ const router = createBrowserRouter([
       // Empleados / Liquidaciones / Horarios
       { path: 'empleados', element: <EmployeesPage /> },
       { path: 'empleados/nuevo', element: <EmployeeCreatePage /> },
+      { path: 'licencias', element: <LeavesManagementPage /> },
       { path: 'liquidaciones', element: <PayrollPage /> },
       { path: 'horarios', element: <SchedulesPage /> },
 
@@ -153,6 +158,7 @@ const router = createBrowserRouter([
       { index: true, element: <EmployeeProfile /> },
       { path: 'payrolls', element: <EmployeePayrolls /> },
       { path: 'documents', element: <EmployeeDocuments /> },
+      { path: 'leaves', element: <LeaveRequestPage /> },
     ],
   },
 ]);

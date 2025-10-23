@@ -1,9 +1,9 @@
 import { Outlet } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { 
-  Home, BarChart3, Users, CalendarClock, CalendarDays, 
-  Upload, IdCard, Receipt, Briefcase, Building2, Clock3, 
-  History, ChevronLeft, ChevronRight 
+import {
+  Home, BarChart3, Users, CalendarClock, CalendarDays,
+  Upload, IdCard, Receipt, Briefcase, Building2, Clock3,
+  History, ChevronLeft, ChevronRight, Palmtree
 } from 'lucide-react';
 import Topbar from '@/components/Topbar';
 import HistoryDrawer from '@/features/history/HistoryDrawer';
@@ -30,6 +30,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/clientes', label: 'Clientes', icon: <Building2 size={18} /> },
   { to: '/cargar-cv', label: 'Cargar CV', icon: <Upload size={18} /> },
   { to: '/empleados', label: 'Empleados', icon: <IdCard size={18} /> },
+  { to: '/licencias', label: 'Licencias', icon: <Palmtree size={18} /> },
   { to: '/liquidaciones', label: 'Liquidaciones', icon: <Receipt size={18} /> },
   { to: '/horarios', label: 'Horarios', icon: <Clock3 size={18} /> },
   { to: '/reportes', label: 'Reportes', icon: <BarChart3 size={18} /> },
