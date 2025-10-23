@@ -1,10 +1,12 @@
 # 📊 Estado del Proyecto RRHH - Resumen Ejecutivo
 
-## 🎯 Progreso General: **60% Implementado**
+## 🎯 Progreso General: **65% Implementado** ⬆️
 
 ```
-████████████████████░░░░░░░░░░  60%
+█████████████████████░░░░░░░░░  65%
 ```
+
+**🎉 Sprint 1 Backend: COMPLETADO (5/5 módulos)**
 
 ---
 
@@ -43,46 +45,48 @@
 
 ---
 
-## 🚧 PARCIALMENTE IMPLEMENTADO (25%)
+## 🚧 PARCIALMENTE IMPLEMENTADO (10%)
 
 ### Falta Completar:
 
-1. **Modelo Employee** - Expandir con:
-   - DNI/CUIL, dirección, contacto emergencia
-   - Fecha de nacimiento e ingreso
-   - Estado (activo, licencia, baja)
-   - CBU/cuenta bancaria
-   - Competencias y habilidades
+1. **Modelo Employee** - ✅ COMPLETADO en Sprint 1
+   - ✅ DNI/CUIL, dirección, contacto emergencia
+   - ✅ Fecha de nacimiento e ingreso
+   - ✅ Estado (activo, licencia, baja)
+   - ✅ CBU/cuenta bancaria
+   - ✅ Competencias y habilidades
 
-2. **Autenticación** - Agregar:
-   - Recuperar contraseña (forgot password)
-   - 2FA opcional
-   - Bloqueo de cuenta tras intentos fallidos
+2. **Autenticación** - Parcialmente completo:
+   - ✅ Recuperar contraseña (forgot password) - Sprint 1
+   - ❌ 2FA opcional
+   - ❌ Bloqueo de cuenta tras intentos fallidos
 
 3. **Autorización (RBAC)** - Implementar:
-   - Permisos granulares por módulo
-   - Roles personalizados
+   - ❌ Permisos granulares por módulo
+   - ❌ Roles personalizados
 
-4. **Notificaciones** - Agregar:
-   - Notificaciones in-app con campana
-   - Centro de notificaciones
-   - Notificaciones en tiempo real
+4. **Notificaciones** - ✅ COMPLETADO en Sprint 1 (Backend)
+   - ✅ Notificaciones in-app con 11 tipos
+   - ✅ Sistema completo con 6 endpoints
+   - ❌ Frontend: campana y centro de notificaciones (pendiente)
+   - ❌ Notificaciones en tiempo real (WebSocket)
 
 5. **Configuración** - Implementar:
-   - Idioma, moneda, zona horaria
-   - Políticas de empresa
+   - ❌ Idioma, moneda, zona horaria
+   - ❌ Políticas de empresa
 
 ---
 
-## ❌ NO IMPLEMENTADO (15%)
+## ❌ NO IMPLEMENTADO (10%)
 
 ### Módulos Faltantes Críticos:
 
-1. **Licencias y Vacaciones** ❌
-   - Solicitud de licencias
-   - Flujo de aprobación
-   - Cálculo de días pendientes
-   - Calendario de ausencias
+1. **Licencias y Vacaciones** - ✅ BACKEND COMPLETADO en Sprint 1
+   - ✅ Solicitud de licencias (9 tipos)
+   - ✅ Flujo de aprobación completo
+   - ✅ Cálculo de días pendientes por antigüedad
+   - ✅ Balance por tipo de licencia
+   - ❌ Frontend: Calendario de ausencias (pendiente)
 
 2. **Control de Asistencias** ❌
    - Registro entrada/salida
@@ -96,10 +100,11 @@
    - Competencias y calificaciones
    - Historial
 
-4. **Auditoría Completa** ❌
-   - Tabla AuditLog
-   - Registro de todas las acciones
-   - Dashboard de auditoría
+4. **Auditoría Completa** - ✅ BACKEND COMPLETADO en Sprint 1
+   - ✅ Tabla AuditLog (10 acciones, 10 recursos)
+   - ✅ Registro de todas las acciones con diff
+   - ✅ Estadísticas de auditoría
+   - ❌ Frontend: Dashboard de auditoría (pendiente)
 
 5. **Firma Digital** ❌
    - Integración con eSign API
@@ -127,12 +132,15 @@
 
 ## 🔥 PRIORIDADES RECOMENDADAS
 
-### Sprint 1 - Completar MVP Core
-1. ✅ Recuperación de contraseña
-2. ✅ Modelo Employee completo
-3. ✅ Licencias y vacaciones (modelo + flujo)
-4. ✅ Auditoría completa (AuditLog)
-5. ✅ Notificaciones in-app
+### Sprint 1 - Completar MVP Core ✅ BACKEND COMPLETO
+1. ✅ Recuperación de contraseña (BACKEND COMPLETO)
+2. ✅ Modelo Employee completo (BACKEND COMPLETO)
+3. ✅ Licencias y vacaciones (BACKEND COMPLETO - modelo + flujo + balance)
+4. ✅ Auditoría completa (BACKEND COMPLETO - AuditLog + stats)
+5. ✅ Notificaciones in-app (BACKEND COMPLETO - 11 tipos + 6 endpoints)
+
+**Estado Sprint 1**: Backend 100% ✅ | Frontend 0% ⏳
+**Documentación**: Ver `SPRINT1_COMPLETADO.md` para detalles completos
 
 ### Sprint 2 - Mejorar UX
 6. ✅ Control de asistencias básico
@@ -174,12 +182,12 @@ api/src/modules/
 ├── ✅ interview/         (Entrevistas)
 ├── ✅ reports/           (Reportes básicos)
 ├── ✅ client/            (Clientes - si aplica)
+├── ✅ leave/             (Licencias - SPRINT 1 ✅)
+├── ✅ audit/             (Auditoría - SPRINT 1 ✅)
+├── ✅ notification/      (Notificaciones - SPRINT 1 ✅)
 └── ❌ [Módulos faltantes]
-    ├── leave/           (Licencias)
     ├── attendance/      (Asistencias)
     ├── evaluation/      (Evaluaciones)
-    ├── audit/           (Auditoría)
-    ├── notification/    (Notificaciones)
     └── communication/   (Comunicación interna)
 ```
 
@@ -216,19 +224,31 @@ web/src/
 - ✅ Sistema de **reclutamiento completo** y funcional
 - ✅ **Liquidaciones** básicas con portal de empleado
 - ✅ **Gestión de adjuntos** completa
+- ✅ **Sprint 1 BACKEND COMPLETO** (5/5 módulos implementados)
+
+**✅ COMPLETADO en Sprint 1 (Backend):**
+- ✅ **Licencias y vacaciones** - 8 endpoints, balance automático, 9 tipos
+- ✅ **Recuperación de contraseña** - Email templates, tokens con TTL
+- ✅ **Auditoría completa** - AuditLog con diff, estadísticas
+- ✅ **Notificaciones in-app** - 11 tipos, 6 endpoints
+- ✅ **Expandir modelo Employee** - 30+ campos nuevos, sub-schemas
 
 **Para tener un MVP completo, se necesita:**
-- ❌ **Licencias y vacaciones** (crítico)
-- ❌ **Control de asistencias** (crítico)
-- ❌ **Recuperación de contraseña** (crítico)
-- ❌ **Auditoría completa** (importante)
-- ❌ **Notificaciones in-app** (importante)
-- ❌ **Expandir modelo Employee** (importante)
+- ⏳ **Frontend Sprint 1** (páginas de licencias, notificaciones, forgot password, employee forms)
+- ❌ **Control de asistencias** (crítico - Sprint 2)
+- ❌ **Configuración regional** (idioma, moneda, timezone - Sprint 2)
+- ❌ **RBAC granular** (permisos por módulo - Sprint 2)
+
+**Progreso actualizado:**
+- Backend: **70% completo** ⬆️ (antes 60%)
+- Frontend: **50% completo**
+- Overall: **65% completo** ⬆️
 
 **Tiempo estimado:**
-- Sprint 1 (MVP Core): **2-3 semanas**
+- ✅ Sprint 1 Backend: **COMPLETADO**
+- ⏳ Sprint 1 Frontend: **1 semana**
 - Sprint 2 (UX): **2 semanas**
 - Sprint 3 (Avanzado): **3-4 semanas**
 - Sprint 4 (Optimización): **1-2 semanas**
 
-**Total: 8-11 semanas para producto completo**
+**Total restante: 7-9 semanas para producto completo**
