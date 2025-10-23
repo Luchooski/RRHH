@@ -11,8 +11,10 @@ Sistema completo de RRHH con multi-tenancy para gestión de empleados, reclutami
 
 ### 👥 Gestión de Empleados
 - CRUD completo de empleados
-- Adjuntos (DNI, CV, contratos, certificados)
+- Adjuntos (DNI, CV, contratos, certificados) con **versionado**
 - Portal de empleados para auto-consulta
+- Asistencias y horarios
+- Licencias y vacaciones
 
 ### 💼 Reclutamiento
 - Gestión de vacantes con checklist y notas
@@ -26,18 +28,50 @@ Sistema completo de RRHH con multi-tenancy para gestión de empleados, reclutami
 - Exportación a PDF
 - Historial completo por empleado
 
+### 📊 Dashboard & Analytics **[Sprint 3]**
+- KPIs en tiempo real (5 categorías)
+- Métricas de reclutamiento, empleados, asistencia, licencias y beneficios
+- Gráficos interactivos (bar, pie, line, area charts)
+- Tendencias temporales con filtros configurables
+- Auto-refresh cada 5 minutos
+
+### 🎁 Sistema de Beneficios **[Sprint 3]**
+- Catálogo de 14 tipos de beneficios
+- Reglas de elegibilidad (antigüedad, rol, departamento)
+- Workflow de asignación y aprobación
+- Tracking de costos (empresa vs empleado)
+- Portal de empleado con vista de beneficios activos
+
+### 🔐 RBAC - Roles y Permisos **[Sprint 3]**
+- 67 permisos granulares en 17 módulos
+- 5 roles predefinidos (admin, hr, employee, manager, recruiter)
+- Creación de roles personalizados
+- UI de gestión de roles y permisos
+- Vista de permisos del usuario actual
+
+### 📁 Gestión de Documentos Avanzada **[Sprint 3]**
+- **Versionado completo** con historial
+- **Búsqueda avanzada** (texto, tags, tipo)
+- **Preview inline** de PDFs e imágenes
+- Notas de versión
+- Full-text search con MongoDB
+
 ### 🔐 Autenticación y Seguridad
 - JWT con dual-token (access + refresh tokens)
 - HTTP-only cookies
 - Rotación de refresh tokens
 - Rate limiting
 - CORS configurado
+- Auditoría completa de acciones
 
 ### 📄 Portal de Empleados
 - Visualización de perfil personal
 - Historial de recibos de pago
 - Descarga de PDFs
-- Acceso a documentos adjuntos
+- Gestión de documentos (preview, versiones, búsqueda)
+- Solicitud de licencias
+- Registro de asistencia
+- Vista de beneficios asignados
 
 ## Tecnologías
 
