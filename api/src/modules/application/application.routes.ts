@@ -2,6 +2,10 @@ import type { FastifyPluginAsync } from 'fastify';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { Application } from './application.model.js';
+import { Candidate } from '../candidates/candidate.model.js';
+import { Vacancy } from '../vacancy/vacancy.model.js';
+import { Tenant } from '../tenant/tenant.model.js';
+import { sendPipelineStageChangeEmail } from '../email/email.service.js';
 
 const ErrorDTO = z.object({ error: z.string() });
 const OkDTO = z.object({ ok: z.literal(true) });
@@ -64,13 +68,53 @@ export const applicationRoutes: FastifyPluginAsync = async (app) => {
       const patch: any = { ...req.body };
 
       // Si cambia el status → asignar order = max+1 en la columna destino
-      if (req.body.status && req.body.status !== current.status) {
+      const statusChanged = req.body.status && req.body.status !== current.status;
+
+      if (statusChanged) {
         const max = await Application
           .find({ vacancyId: current.vacancyId, status: req.body.status, tenantId })
           .sort({ order: -1 })
           .limit(1)
           .lean();
         patch.order = ((max?.[0]?.order ?? -1) + 1);
+
+        // Enviar email automático cuando cambie la etapa
+        try {
+          // Obtener información del candidato, vacante y tenant
+          const [candidate, vacancy, tenant] = await Promise.all([
+            Candidate.findOne({ _id: current.candidateId, tenantId }).lean(),
+            Vacancy.findOne({ _id: current.vacancyId, tenantId }).lean(),
+            Tenant.findById(tenantId).lean(),
+          ]);
+
+          if (candidate?.email && vacancy?.title && tenant?.name) {
+            // Mapear status a nombre legible
+            const statusLabels: Record<string, string> = {
+              sent: 'Postulación Recibida',
+              interview: 'Entrevista',
+              feedback: 'En Evaluación',
+              offer: 'Oferta Enviada',
+              hired: 'Contratado/a',
+              rejected: 'No Seleccionado/a',
+            };
+
+            const newStageName = statusLabels[req.body.status] || req.body.status;
+
+            // Enviar email (sin bloquear la respuesta)
+            sendPipelineStageChangeEmail(
+              candidate.email,
+              `${candidate.firstName} ${candidate.lastName}`,
+              vacancy.title,
+              newStageName,
+              tenant.name
+            ).catch((err) => {
+              console.error('[EMAIL] Error sending pipeline stage change email:', err);
+            });
+          }
+        } catch (emailError) {
+          // No fallar la actualización si el email falla
+          console.error('[EMAIL] Error in email sending logic:', emailError);
+        }
       }
 
       await Application.findOneAndUpdate({ _id: req.params.id, tenantId }, { $set: patch }, { new: true }).lean();

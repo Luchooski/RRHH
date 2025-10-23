@@ -34,7 +34,7 @@
     "jsonwebtoken": "^9.0.2",
     "mammoth": "^1.11.0",
     "mongoose": "^8.19.1",
-    "nodemailer": "^7.0.9",
+    "nodemailer": "^7.0.10",
     "pdf-parse": "^2.4.3",
     "pdfkit": "^0.17.2",
     "pino": "^9.13.1",
