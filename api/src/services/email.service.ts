@@ -5,7 +5,7 @@ import { env } from '../config/env.js';
 const createTransporter = () => {
   // En producción, usar SMTP configurado
   if (env.isProd && env.SMTP_HOST) {
-    return nodemailer.createTransporter({
+    return nodemailer.createTransport({
       host: env.SMTP_HOST,
       port: Number(env.SMTP_PORT || 587),
       secure: env.SMTP_SECURE === 'true',
@@ -18,7 +18,7 @@ const createTransporter = () => {
 
   // En desarrollo, usar ethereal (email de prueba)
   // Los emails no se envían realmente, pero se puede ver en https://ethereal.email
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     host: 'smtp.ethereal.email',
     port: 587,
     secure: false,

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bell, Check, ExternalLink } from 'lucide-react';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate } from 'react-router-dom';
 import * as api from './api';
 import type { Notification } from './dto';
 
@@ -61,7 +61,7 @@ export default function NotificationBell() {
     setIsOpen(false);
 
     if (notification.actionUrl) {
-      navigate({ to: notification.actionUrl });
+      navigate(notification.actionUrl);
     }
   };
 
@@ -182,7 +182,7 @@ export default function NotificationBell() {
             <button
               onClick={() => {
                 setIsOpen(false);
-                navigate({ to: '/notifications' });
+                navigate('/notifications');
               }}
               className="w-full text-center text-sm text-blue-600 hover:text-blue-800 font-medium"
             >

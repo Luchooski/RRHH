@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { Badge } from '../../components/ui/Badge';
 import { http } from '../../lib/http';
-import { Modal } from '../../components/ui/Modal';
+import Modal from '../../components/ui/Modal';
 
 type Payroll = {
   id: string;

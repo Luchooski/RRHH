@@ -2,7 +2,7 @@ import { Menu, History, LogOut, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/auth';
 import ThemeToggle from './ThemeToggle';
-import NotificationCenter from '@/features/notifications/NotificationCenter';
+import NotificationBell from '@/features/notifications/NotificationBell';
 
 
 interface TopbarProps {
@@ -99,7 +99,7 @@ export default function Topbar({ onOpenHistory, onToggleSidebar }: TopbarProps) 
           )}
 
           {/* Notifications */}
-          {user && <NotificationCenter />}
+          {user && <NotificationBell />}
 
           {/* Theme toggle */}
           <ThemeToggle />

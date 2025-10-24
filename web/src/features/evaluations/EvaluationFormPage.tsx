@@ -4,9 +4,8 @@ import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Toolbar } from '@/components/ui/Toolbar';
 import { useToast } from '@/components/ui/Toast';
-import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
-import { Save, Send, AlertCircle, CheckCircle2, Star } from 'lucide-react';
+import { Save, Send, AlertCircle, Star } from 'lucide-react';
 import * as api from './api';
 import type { EvaluationInstance, EvaluationTemplate, CompetencyRating, ObjectiveRating, GeneralAnswer } from './dto';
 
@@ -50,18 +49,18 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
       queryClient.invalidateQueries({ queryKey: ['evaluation', evaluationId] });
     },
     onError: (error: any) => {
-      push({ kind: 'error', title: 'Error', message: error?.message ?? 'No se pudo guardar' });
+      push({ kind: 'error', title: 'Error', message: error?.message || 'No se pudo guardar' });
     },
   });
 
   const submitMutation = useMutation({
     mutationFn: () => api.submitEvaluation(evaluationId),
     onSuccess: () => {
-      push({ kind: 'success', title: 'Enviado', message: 'Evaluación enviada correctamente' });
+      push({ kind: 'success', title: 'Enviado', message: 'Evaluacion enviada correctamente' });
       queryClient.invalidateQueries({ queryKey: ['evaluation', evaluationId] });
     },
-    onError: (error: any) {
-      push({ kind: 'error', title: 'Error', message: error?.message ?? 'No se pudo enviar la evaluación' });
+    onError: (error: any) => {
+      push({ kind: 'error', title: 'Error', message: error?.message || 'No se pudo enviar' });
     },
   });
 
@@ -77,7 +76,6 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
   const handleSubmit = async () => {
     if (!template) return;
 
-    // Validate required competencies
     const requiredCompetencies = template.competencies.filter((c) => c.required);
     const ratedCompetencies = competencyRatings.filter((r) => r.rating > 0);
 
@@ -90,7 +88,6 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
       return;
     }
 
-    // Validate required objectives
     const requiredObjectives = template.objectives.filter((o) => o.required);
     const ratedObjectives = objectiveRatings.filter((r) => r.rating > 0);
 
@@ -103,9 +100,8 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
       return;
     }
 
-    if (!confirm('¿Está seguro de enviar esta evaluación? No podrá modificarla después.')) return;
+    if (!confirm('Esta seguro de enviar esta evaluacion? No podra modificarla despues.')) return;
 
-    // Save first, then submit
     await saveMutation.mutateAsync({
       competencyRatings,
       objectiveRatings,
@@ -120,7 +116,7 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
       const existing = prev.find((r) => r.competencyId === competencyId);
       if (existing) {
         return prev.map((r) =>
-          r.competencyId === competencyId ? { ...r, rating, comment: comment ?? r.comment } : r
+          r.competencyId === competencyId ? { ...r, rating, comment: comment || r.comment } : r
         );
       }
       return [...prev, { competencyId, rating, comment: comment || '' }];
@@ -132,7 +128,7 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
       const existing = prev.find((r) => r.objectiveId === objectiveId);
       if (existing) {
         return prev.map((r) =>
-          r.objectiveId === objectiveId ? { ...r, rating, achievement: achievement ?? r.achievement, comment: comment ?? r.comment } : r
+          r.objectiveId === objectiveId ? { ...r, rating, achievement: achievement || r.achievement, comment: comment || r.comment } : r
         );
       }
       return [...prev, { objectiveId, rating, achievement: achievement || '', comment: comment || '' }];
@@ -168,11 +164,7 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
           <button
             key={val}
             onClick={() => onChange(val)}
-            className={`w-10 h-10 rounded-full border-2 flex items-center justify-center font-semibold transition-all ${
-              value === val
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
-            }`}
+            className={'w-10 h-10 rounded-full border-2 flex items-center justify-center font-semibold transition-all ' + (value === val ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400')}
           >
             {val}
           </button>
@@ -184,7 +176,7 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
   if (isLoading) {
     return (
       <div className="container">
-        <div className="text-center py-8">Cargando evaluación...</div>
+        <div className="text-center py-8">Cargando evaluacion...</div>
       </div>
     );
   }
@@ -194,7 +186,7 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
       <div className="container">
         <Card>
           <CardBody>
-            <div className="text-center py-8 text-red-600">No se encontró la evaluación</div>
+            <div className="text-center py-8 text-red-600">No se encontro la evaluacion</div>
           </CardBody>
         </Card>
       </div>
@@ -206,7 +198,7 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
   return (
     <div className="container space-y-4 pb-8">
       <Toolbar
-        title="Evaluación de Desempeño"
+        title="Evaluacion de Desempeno"
         right={
           !isReadOnly && (
             <div className="flex gap-2">
@@ -223,14 +215,13 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
                 disabled={submitMutation.isPending}
               >
                 <Send size={16} className="mr-2" />
-                {submitMutation.isPending ? 'Enviando...' : 'Enviar Evaluación'}
+                {submitMutation.isPending ? 'Enviando...' : 'Enviar Evaluacion'}
               </Button>
             </div>
           )
         }
       />
 
-      {/* Header Info */}
       <Card>
         <CardBody>
           <div className="grid gap-4 md:grid-cols-2">
@@ -242,18 +233,8 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
               )}
             </div>
             <div>
-              <div className="text-sm text-gray-500">Tipo de Evaluación</div>
+              <div className="text-sm text-gray-500">Tipo de Evaluacion</div>
               <div className="font-semibold capitalize">{evaluation.evaluatorRole}</div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-500">Fecha Límite</div>
-              <div className="font-semibold">
-                {new Date(evaluation.dueDate).toLocaleDateString()}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-500">Estado</div>
-              <div className="font-semibold capitalize">{evaluation.status}</div>
             </div>
           </div>
         </CardBody>
@@ -264,13 +245,12 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
           <CardBody>
             <div className="flex items-center gap-2 text-yellow-800">
               <AlertCircle size={20} />
-              <span className="font-medium">Esta evaluación ya fue enviada y no se puede modificar.</span>
+              <span className="font-medium">Esta evaluacion ya fue enviada y no se puede modificar.</span>
             </div>
           </CardBody>
         </Card>
       )}
 
-      {/* Competencies */}
       {template.competencies.length > 0 && (
         <Card>
           <CardHeader>
@@ -288,9 +268,6 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
                         {competency.required && (
                           <span className="text-xs text-red-600">*</span>
                         )}
-                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                          Peso: {competency.weight}
-                        </span>
                       </div>
                       {competency.description && (
                         <p className="text-sm text-gray-600 mt-1">{competency.description}</p>
@@ -300,7 +277,7 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
 
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-sm font-medium mb-2">Calificación</label>
+                      <label className="block text-sm font-medium mb-2">Calificacion</label>
                       {renderRatingScale(
                         rating?.rating || 0,
                         template.ratingScale.max,
@@ -334,7 +311,6 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
         </Card>
       )}
 
-      {/* Objectives */}
       {template.objectives.length > 0 && (
         <Card>
           <CardHeader>
@@ -352,9 +328,6 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
                         {objective.required && (
                           <span className="text-xs text-red-600">*</span>
                         )}
-                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                          Peso: {objective.weight}
-                        </span>
                       </div>
                       {objective.description && (
                         <p className="text-sm text-gray-600 mt-1">{objective.description}</p>
@@ -364,7 +337,7 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
 
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-sm font-medium mb-2">Calificación</label>
+                      <label className="block text-sm font-medium mb-2">Calificacion</label>
                       {renderRatingScale(
                         rating?.rating || 0,
                         template.ratingScale.max,
@@ -382,19 +355,6 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
                         disabled={isReadOnly}
                       />
                     </div>
-
-                    {template.config.allowComments && (
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Comentarios</label>
-                        <Textarea
-                          value={rating?.comment || ''}
-                          onChange={(e) => updateObjectiveRating(objective.id, rating?.rating || 0, rating?.achievement, e.target.value)}
-                          placeholder="Comentarios adicionales..."
-                          rows={2}
-                          disabled={isReadOnly}
-                        />
-                      </div>
-                    )}
                   </div>
                 </div>
               );
@@ -403,33 +363,6 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
         </Card>
       )}
 
-      {/* General Questions */}
-      {template.generalQuestions.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Preguntas Generales</CardTitle>
-          </CardHeader>
-          <CardBody className="space-y-4">
-            {template.generalQuestions.map((question) => (
-              <div key={question.id}>
-                <label className="block text-sm font-medium mb-1">
-                  {question.question}
-                  {question.required && <span className="text-red-600 ml-1">*</span>}
-                </label>
-                <Textarea
-                  value={getAnswerForQuestion(question.id)}
-                  onChange={(e) => updateGeneralAnswer(question.id, e.target.value)}
-                  placeholder="Su respuesta..."
-                  rows={3}
-                  disabled={isReadOnly}
-                />
-              </div>
-            ))}
-          </CardBody>
-        </Card>
-      )}
-
-      {/* Overall Comment */}
       <Card>
         <CardHeader>
           <CardTitle>Comentarios Generales</CardTitle>
@@ -438,30 +371,12 @@ export default function EvaluationFormPage({ evaluationId }: EvaluationFormPageP
           <Textarea
             value={overallComment}
             onChange={(e) => setOverallComment(e.target.value)}
-            placeholder="Comentarios generales sobre el desempeño..."
+            placeholder="Comentarios generales sobre el desempeno..."
             rows={4}
             disabled={isReadOnly}
           />
         </CardBody>
       </Card>
-
-      {/* Submit Warning */}
-      {!isReadOnly && (
-        <Card className="bg-blue-50 border-blue-200">
-          <CardBody>
-            <div className="flex items-start gap-3">
-              <AlertCircle size={20} className="text-blue-600 mt-0.5" />
-              <div className="flex-1">
-                <div className="font-medium text-blue-900">Importante</div>
-                <div className="text-sm text-blue-800 mt-1">
-                  Asegúrese de completar todas las secciones requeridas antes de enviar.
-                  Una vez enviada, la evaluación no podrá ser modificada.
-                </div>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-      )}
     </div>
   );
 }
