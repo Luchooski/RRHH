@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { hasPermission, Permission, Role } from './permissions.model';
+import { hasPermission, Permission, Role } from './permissions.model.js';
 
 // Extender el tipo de usuario para incluir permisos personalizados
 declare module 'fastify' {

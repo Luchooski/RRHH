@@ -1,10 +1,10 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
-import * as svc from './benefits.service';
-import * as dto from './benefits.dto';
-import { requirePermission } from '../permissions/permissions.middleware';
-import { getReqUser } from '../../middlewares/auth';
+import * as svc from './benefits.service.js';
+import * as dto from './benefits.dto.js';
+import { requirePermission } from '../permissions/permissions.middleware.js';
+import { getReqUser } from '../../middlewares/auth.js';
 
 export default async function benefitsRoutes(app: FastifyInstance) {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -65,6 +65,7 @@ export default async function benefitsRoutes(app: FastifyInstance) {
       response: {
         200: z.any(),
         404: z.object({ error: z.string(), message: z.string() }),
+        400: z.object({ error: z.string(), message: z.string() }),
       },
     },
     handler: async (req, reply) => {
@@ -93,6 +94,7 @@ export default async function benefitsRoutes(app: FastifyInstance) {
       response: {
         200: z.any(),
         404: z.object({ error: z.string(), message: z.string() }),
+        400: z.object({ error: z.string(), message: z.string() }),
       },
     },
     handler: async (req, reply) => {

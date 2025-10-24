@@ -5,12 +5,18 @@ import react from 'eslint-plugin-react';
 import hooks from 'eslint-plugin-react-hooks';
 import a11y from 'eslint-plugin-jsx-a11y';
 import prettier from 'eslint-config-prettier';
+import globals from 'globals';
 
 export default [
   { ignores: ['dist'] },
   {
     files: ['**/*.{ts,tsx}'],
-    languageOptions: { parser: tsParser },
+    languageOptions: {
+      parser: tsParser,
+      globals: {
+        ...globals.browser
+      }
+    },
     plugins: { '@typescript-eslint': ts, react, 'react-hooks': hooks, 'jsx-a11y': a11y },
     rules: { ...js.configs.recommended.rules, ...ts.configs.recommended.rules, ...prettier.rules,
       'react/react-in-jsx-scope':'off', 'react/prop-types':'off' },

@@ -79,3 +79,4 @@ export type PipelineStage = 'new' | 'screening' | 'interview' | 'offer' | 'hired
  CandidateSchema.index({ name: 'text', email: 'text', skills: 'text', tags: 'text' });
 
  export const Candidate = model<CandidateDoc>('Candidate', CandidateSchema);
+ export const CandidateModel = Candidate;

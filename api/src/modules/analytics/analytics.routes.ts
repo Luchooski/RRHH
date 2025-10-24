@@ -1,9 +1,9 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
-import * as svc from './analytics.service';
-import { requirePermission } from '../permissions/permissions.middleware';
-import { getReqUser } from '../../middlewares/auth';
+import * as svc from './analytics.service.js';
+import { requirePermission } from '../permissions/permissions.middleware.js';
+import { getReqUser } from '../../middlewares/auth.js';
 
 export default async function analyticsRoutes(app: FastifyInstance) {
   const r = app.withTypeProvider<ZodTypeProvider>();

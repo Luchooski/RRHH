@@ -2,8 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { Tenant } from '../tenant/tenant.model.js';
-import { CandidateModel } from '../candidate/candidate.model.js';
-import { VacancyModel } from '../vacancy/vacancy.model.js';
+import { CandidateModel } from '../candidates/candidate.model.js';
+import { VacancyModel, type VacancyDoc } from '../vacancy/vacancy.model.js';
 import path from 'path';
 import fs from 'fs/promises';
 import { randomBytes } from 'crypto';
@@ -48,7 +48,8 @@ export default async function publicApplicationRoutes(app: FastifyInstance) {
             status: z.string()
           }))
         }),
-        404: z.any()
+        404: z.any(),
+        500: z.any()
       }
     },
     handler: async (req, reply) => {
@@ -76,7 +77,7 @@ export default async function publicApplicationRoutes(app: FastifyInstance) {
             logo: (tenant as any).branding?.logo,
             primaryColor: (tenant as any).branding?.primaryColor
           },
-          vacancies: vacancies.map(v => ({
+          vacancies: vacancies.map((v: VacancyDoc) => ({
             id: String(v._id),
             title: v.title,
             description: (v as any).description,
@@ -105,7 +106,8 @@ export default async function publicApplicationRoutes(app: FastifyInstance) {
           message: z.string()
         }),
         400: z.any(),
-        404: z.any()
+        404: z.any(),
+        500: z.any()
       }
     },
     handler: async (req, reply) => {

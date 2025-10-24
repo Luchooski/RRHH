@@ -13,7 +13,7 @@ import {
   updateTenant,
   listTenants
 } from './tenant.service.js';
-import { CandidateModel } from '../candidate/candidate.model.js';
+import { CandidateModel } from '../candidates/candidate.model.js';
 
 const tenantRoutes: FastifyPluginAsync = async (app) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -109,7 +109,7 @@ const tenantRoutes: FastifyPluginAsync = async (app) => {
       ]);
 
       // Rellenar días sin datos con 0
-      const trendsMap = new Map(trends.map(t => [t.date, t]));
+      const trendsMap = new Map(trends.map((t: { date: string; count: number; careersPage: number }) => [t.date, t]));
       const result = [];
 
       for (let i = 0; i < days; i++) {
@@ -188,7 +188,8 @@ const tenantRoutes: FastifyPluginAsync = async (app) => {
       params: z.object({ id: z.string() }),
       response: {
         200: TenantOutputSchema,
-        404: ErrorSchema
+        404: ErrorSchema,
+        403: ErrorSchema
       }
     },
     onRequest: [app.authGuard], // Usar el middleware de autenticación
