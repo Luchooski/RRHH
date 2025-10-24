@@ -5,6 +5,7 @@ import { z } from 'zod';
 import * as TemplateService from './evaluation-template.service.js';
 import * as CycleService from './evaluation-cycle.service.js';
 import * as InstanceService from './evaluation-instance.service.js';
+import * as AnalyticsService from './evaluation-analytics.service.js';
 
 export default async function evaluationsRoutes(app: FastifyInstance) {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -526,6 +527,180 @@ export default async function evaluationsRoutes(app: FastifyInstance) {
         return reply.send(summary);
       } catch (err: any) {
         return reply.code(400).send({ error: err?.message ?? 'Error getting summary' });
+      }
+    }
+  );
+
+  // ========= ANALYTICS =========
+
+  // Get cycle analytics
+  r.get(
+    '/analytics/cycle/:cycleId',
+    {
+      schema: {
+        params: z.object({ cycleId: z.string() }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const tenantId = (req as any).user?.tenantId || 'default';
+        const { cycleId } = req.params as any;
+
+        const analytics = await AnalyticsService.getCycleAnalytics({
+          tenantId,
+          cycleId,
+        });
+
+        return reply.send(analytics);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Error getting analytics' });
+      }
+    }
+  );
+
+  // Get department comparison
+  r.get(
+    '/analytics/cycle/:cycleId/departments',
+    {
+      schema: {
+        params: z.object({ cycleId: z.string() }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const tenantId = (req as any).user?.tenantId || 'default';
+        const { cycleId } = req.params as any;
+
+        const comparison = await AnalyticsService.getDepartmentComparison({
+          tenantId,
+          cycleId,
+        });
+
+        return reply.send(comparison);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Error getting department comparison' });
+      }
+    }
+  );
+
+  // Get top performers
+  r.get(
+    '/analytics/cycle/:cycleId/top-performers',
+    {
+      schema: {
+        params: z.object({ cycleId: z.string() }),
+        querystring: z.object({
+          limit: z.coerce.number().optional(),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const tenantId = (req as any).user?.tenantId || 'default';
+        const { cycleId } = req.params as any;
+        const { limit } = req.query as any;
+
+        const topPerformers = await AnalyticsService.getTopPerformers({
+          tenantId,
+          cycleId,
+          limit,
+        });
+
+        return reply.send(topPerformers);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Error getting top performers' });
+      }
+    }
+  );
+
+  // Get competency analysis
+  r.get(
+    '/analytics/cycle/:cycleId/competencies',
+    {
+      schema: {
+        params: z.object({ cycleId: z.string() }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const tenantId = (req as any).user?.tenantId || 'default';
+        const { cycleId } = req.params as any;
+
+        const analysis = await AnalyticsService.getCompetencyAnalysis({
+          tenantId,
+          cycleId,
+        });
+
+        return reply.send(analysis);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Error getting competency analysis' });
+      }
+    }
+  );
+
+  // Get employee history
+  r.get(
+    '/analytics/employee/:employeeId/history',
+    {
+      schema: {
+        params: z.object({ employeeId: z.string() }),
+        querystring: z.object({
+          limit: z.coerce.number().optional(),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const tenantId = (req as any).user?.tenantId || 'default';
+        const { employeeId } = req.params as any;
+        const { limit } = req.query as any;
+
+        const history = await AnalyticsService.getEmployeeHistory({
+          tenantId,
+          employeeId,
+          limit,
+        });
+
+        return reply.send(history);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Error getting employee history' });
+      }
+    }
+  );
+
+  // Get score trends
+  r.get(
+    '/analytics/trends',
+    {
+      schema: {
+        querystring: z.object({
+          employeeId: z.string().optional(),
+          department: z.string().optional(),
+          limit: z.coerce.number().optional(),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const tenantId = (req as any).user?.tenantId || 'default';
+        const { employeeId, department, limit } = req.query as any;
+
+        const trends = await AnalyticsService.getScoreTrends({
+          tenantId,
+          employeeId,
+          department,
+          limit,
+        });
+
+        return reply.send(trends);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Error getting trends' });
       }
     }
   );
