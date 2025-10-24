@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { Tenant } from '../tenant/tenant.model.js';
-import { CandidateModel } from '../candidate/candidate.model.js';
+import { CandidateModel } from '../candidates/candidate.model.js';
 import { VacancyModel } from '../vacancy/vacancy.model.js';
 import path from 'path';
 import fs from 'fs/promises';

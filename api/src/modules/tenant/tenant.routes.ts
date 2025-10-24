@@ -13,7 +13,7 @@ import {
   updateTenant,
   listTenants
 } from './tenant.service.js';
-import { CandidateModel } from '../candidate/candidate.model.js';
+import { CandidateModel } from '../candidates/candidate.model.js';
 
 const tenantRoutes: FastifyPluginAsync = async (app) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
