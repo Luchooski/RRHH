@@ -7,8 +7,8 @@
   "scripts": {
     "dev:api": "cd api && npm run dev",
     "dev:web": "cd web && npm run dev",
-    "build": "cd api && npm run build",
-    "build:api": "cd api && npm run build",
+    "build": "cd api && npm install && npm run build",
+    "build:api": "cd api && npm install && npm run build",
     "build:web": "cd web && npm run build",
     "start": "cd api && npm start",
     "start:api": "cd api && npm start",

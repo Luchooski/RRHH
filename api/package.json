@@ -4,9 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc -p .",
+    "build": "npx tsc -p .",
     "start": "node dist/server.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "npx tsc -p tsconfig.json --noEmit",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "test": "vitest run"
   },
