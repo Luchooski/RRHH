@@ -6,6 +6,11 @@ import PDFDocument from 'pdfkit';
 import { Application } from '../application/application.model.js';
 import { Vacancy } from '../vacancy/vacancy.model.js';
 
+// Advanced reporting services
+import * as AttendanceReports from './attendance-reports.service.js';
+import * as LeaveReports from './leave-reports.service.js';
+import * as EmployeeReports from './employee-reports.service.js';
+
 // ---- Helpers de fechas ----
 function parseDateLoose(s?: string): Date | undefined {
   if (!s) return undefined;
@@ -309,6 +314,413 @@ export default async function reportsRoutes(app: FastifyInstance) {
         return reply;
       } catch (err: any) {
         return reply.code(400).send({ error: err?.message ?? 'Invalid range' });
+      }
+    }
+  );
+
+  // ========= ATTENDANCE REPORTS =========
+
+  r.get(
+    '/attendance/summary',
+    {
+      schema: {
+        querystring: z.object({
+          from: z.string(),
+          to: z.string(),
+          employeeId: z.string().optional(),
+          department: z.string().optional(),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { from, to, employeeId, department } = req.query as any;
+        const range = normalizeRange(from, to);
+        const tenantId = (req as any).user?.tenantId || 'default';
+
+        const result = await AttendanceReports.getAttendanceSummaryReport({
+          tenantId,
+          startDate: range.from!,
+          endDate: range.to!,
+          employeeId,
+          department,
+        });
+
+        return reply.send(result);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Report error' });
+      }
+    }
+  );
+
+  r.get(
+    '/attendance/overtime',
+    {
+      schema: {
+        querystring: z.object({
+          from: z.string(),
+          to: z.string(),
+          employeeId: z.string().optional(),
+          minOvertimeHours: z.coerce.number().optional(),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { from, to, employeeId, minOvertimeHours } = req.query as any;
+        const range = normalizeRange(from, to);
+        const tenantId = (req as any).user?.tenantId || 'default';
+
+        const result = await AttendanceReports.getOvertimeReport({
+          tenantId,
+          startDate: range.from!,
+          endDate: range.to!,
+          employeeId,
+          minOvertimeHours,
+        });
+
+        return reply.send(result);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Report error' });
+      }
+    }
+  );
+
+  r.get(
+    '/attendance/absences',
+    {
+      schema: {
+        querystring: z.object({
+          from: z.string(),
+          to: z.string(),
+          employeeId: z.string().optional(),
+          includeLeaves: z.coerce.boolean().optional(),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { from, to, employeeId, includeLeaves } = req.query as any;
+        const range = normalizeRange(from, to);
+        const tenantId = (req as any).user?.tenantId || 'default';
+
+        const result = await AttendanceReports.getAbsencesReport({
+          tenantId,
+          startDate: range.from!,
+          endDate: range.to!,
+          employeeId,
+          includeLeaves,
+        });
+
+        return reply.send(result);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Report error' });
+      }
+    }
+  );
+
+  r.get(
+    '/attendance/trend',
+    {
+      schema: {
+        querystring: z.object({
+          from: z.string(),
+          to: z.string(),
+          groupBy: z.enum(['week', 'month']).default('month'),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { from, to, groupBy } = req.query as any;
+        const range = normalizeRange(from, to);
+        const tenantId = (req as any).user?.tenantId || 'default';
+
+        const result = await AttendanceReports.getAttendanceTrend({
+          tenantId,
+          startDate: range.from!,
+          endDate: range.to!,
+          groupBy,
+        });
+
+        return reply.send(result);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Report error' });
+      }
+    }
+  );
+
+  // ========= LEAVE REPORTS =========
+
+  r.get(
+    '/leaves/balance',
+    {
+      schema: {
+        querystring: z.object({
+          employeeId: z.string().optional(),
+          department: z.string().optional(),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { employeeId, department } = req.query as any;
+        const tenantId = (req as any).user?.tenantId || 'default';
+
+        const result = await LeaveReports.getLeaveBalanceReport({
+          tenantId,
+          employeeId,
+          department,
+        });
+
+        return reply.send(result);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Report error' });
+      }
+    }
+  );
+
+  r.get(
+    '/leaves/usage',
+    {
+      schema: {
+        querystring: z.object({
+          from: z.string(),
+          to: z.string(),
+          employeeId: z.string().optional(),
+          leaveType: z.string().optional(),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { from, to, employeeId, leaveType } = req.query as any;
+        const range = normalizeRange(from, to);
+        const tenantId = (req as any).user?.tenantId || 'default';
+
+        const result = await LeaveReports.getLeaveUsageReport({
+          tenantId,
+          startDate: range.from!,
+          endDate: range.to!,
+          employeeId,
+          leaveType,
+        });
+
+        return reply.send(result);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Report error' });
+      }
+    }
+  );
+
+  r.get(
+    '/leaves/projections',
+    {
+      schema: {
+        querystring: z.object({
+          employeeId: z.string(),
+          months: z.coerce.number().default(12),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { employeeId, months } = req.query as any;
+        const tenantId = (req as any).user?.tenantId || 'default';
+
+        const result = await LeaveReports.getLeaveProjections({
+          tenantId,
+          employeeId,
+          months,
+        });
+
+        return reply.send(result);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Report error' });
+      }
+    }
+  );
+
+  r.get(
+    '/leaves/statistics',
+    {
+      schema: {
+        querystring: z.object({
+          from: z.string(),
+          to: z.string(),
+          groupBy: z.enum(['type', 'month', 'department']).default('type'),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { from, to, groupBy } = req.query as any;
+        const range = normalizeRange(from, to);
+        const tenantId = (req as any).user?.tenantId || 'default';
+
+        const result = await LeaveReports.getLeaveStatistics({
+          tenantId,
+          startDate: range.from!,
+          endDate: range.to!,
+          groupBy,
+        });
+
+        return reply.send(result);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Report error' });
+      }
+    }
+  );
+
+  // ========= EMPLOYEE REPORTS =========
+
+  r.get(
+    '/employees/demographics',
+    {
+      schema: {
+        querystring: z.object({
+          status: z.enum(['active', 'inactive', 'all']).default('active'),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { status } = req.query as any;
+        const tenantId = (req as any).user?.tenantId || 'default';
+
+        const result = await EmployeeReports.getEmployeeDemographics({
+          tenantId,
+          status,
+        });
+
+        return reply.send(result);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Report error' });
+      }
+    }
+  );
+
+  r.get(
+    '/employees/turnover',
+    {
+      schema: {
+        querystring: z.object({
+          from: z.string(),
+          to: z.string(),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { from, to } = req.query as any;
+        const range = normalizeRange(from, to);
+        const tenantId = (req as any).user?.tenantId || 'default';
+
+        const result = await EmployeeReports.getTurnoverReport({
+          tenantId,
+          startDate: range.from!,
+          endDate: range.to!,
+        });
+
+        return reply.send(result);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Report error' });
+      }
+    }
+  );
+
+  r.get(
+    '/employees/headcount-trend',
+    {
+      schema: {
+        querystring: z.object({
+          from: z.string(),
+          to: z.string(),
+          groupBy: z.enum(['month', 'quarter']).default('month'),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { from, to, groupBy } = req.query as any;
+        const range = normalizeRange(from, to);
+        const tenantId = (req as any).user?.tenantId || 'default';
+
+        const result = await EmployeeReports.getHeadcountTrend({
+          tenantId,
+          startDate: range.from!,
+          endDate: range.to!,
+          groupBy,
+        });
+
+        return reply.send(result);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Report error' });
+      }
+    }
+  );
+
+  r.get(
+    '/employees/salary-distribution',
+    {
+      schema: {
+        querystring: z.object({
+          groupBy: z.enum(['department', 'position', 'seniority']).default('department'),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { groupBy } = req.query as any;
+        const tenantId = (req as any).user?.tenantId || 'default';
+
+        const result = await EmployeeReports.getSalaryDistribution({
+          tenantId,
+          groupBy,
+        });
+
+        return reply.send(result);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Report error' });
+      }
+    }
+  );
+
+  r.get(
+    '/employees/upcoming-birthdays',
+    {
+      schema: {
+        querystring: z.object({
+          days: z.coerce.number().default(30),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { days } = req.query as any;
+        const tenantId = (req as any).user?.tenantId || 'default';
+
+        const result = await EmployeeReports.getUpcomingBirthdays({
+          tenantId,
+          days,
+        });
+
+        return reply.send(result);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Report error' });
       }
     }
   );
