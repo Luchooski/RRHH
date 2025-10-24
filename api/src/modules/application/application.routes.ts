@@ -103,7 +103,7 @@ export const applicationRoutes: FastifyPluginAsync = async (app) => {
             // Enviar email (sin bloquear la respuesta)
             sendPipelineStageChangeEmail(
               candidate.email,
-              `${candidate.firstName} ${candidate.lastName}`,
+              candidate.name || candidate.email,
               vacancy.title,
               newStageName,
               tenant.name
