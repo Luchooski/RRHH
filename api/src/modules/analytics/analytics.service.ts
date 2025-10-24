@@ -1,10 +1,10 @@
-import { Candidate } from '../candidates/candidate.model';
-import { Vacancy } from '../vacancy/vacancy.model';
-import { Application } from '../application/application.model';
-import { Employee } from '../employee/employee.model';
-import { Attendance } from '../attendance/attendance.model';
-import { Leave } from '../leave/leave.model';
-import { EmployeeBenefit } from '../benefits/benefits.model';
+import { Candidate } from '../candidates/candidate.model.js';
+import { Vacancy } from '../vacancy/vacancy.model.js';
+import { Application } from '../application/application.model.js';
+import { Employee } from '../employee/employee.model.js';
+import { Attendance } from '../attendance/attendance.model.js';
+import { Leave } from '../leave/leave.model.js';
+import { EmployeeBenefit } from '../benefits/benefits.model.js';
 
 // ===== Dashboard KPIs =====
 

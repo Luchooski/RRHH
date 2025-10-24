@@ -1,8 +1,8 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
-import * as svc from './permissions.service';
-import { requirePermission } from './permissions.middleware';
+import * as svc from './permissions.service.js';
+import { requirePermission } from './permissions.middleware.js';
 
 // Schemas de validación
 const CreateRoleSchema = z.object({

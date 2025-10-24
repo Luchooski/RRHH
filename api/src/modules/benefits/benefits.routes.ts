@@ -65,6 +65,7 @@ export default async function benefitsRoutes(app: FastifyInstance) {
       response: {
         200: z.any(),
         404: z.object({ error: z.string(), message: z.string() }),
+        400: z.object({ error: z.string(), message: z.string() }),
       },
     },
     handler: async (req, reply) => {
@@ -93,6 +94,7 @@ export default async function benefitsRoutes(app: FastifyInstance) {
       response: {
         200: z.any(),
         404: z.object({ error: z.string(), message: z.string() }),
+        400: z.object({ error: z.string(), message: z.string() }),
       },
     },
     handler: async (req, reply) => {

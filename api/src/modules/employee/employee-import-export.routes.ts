@@ -1,8 +1,8 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
-import * as svc from './employee-import-export.service';
-import { requirePermission } from '../permissions/permissions.middleware';
+import * as svc from './employee-import-export.service.js';
+import { requirePermission } from '../permissions/permissions.middleware.js';
 import { MultipartFile } from '@fastify/multipart';
 
 // Schemas

@@ -1,4 +1,4 @@
-import { Employee } from './employee.model';
+import { Employee, type EmployeeDoc } from './employee.model.js';
 import { Parser } from 'json2csv';
 import { Readable } from 'stream';
 
@@ -55,7 +55,7 @@ export async function exportEmployees(
 
   if (format === 'json') {
     // Retornar JSON directamente
-    return employees.map((emp) => {
+    return employees.map((emp: EmployeeDoc) => {
       const filtered: any = {};
       fieldsToExport.forEach((field) => {
         if (field in emp) {

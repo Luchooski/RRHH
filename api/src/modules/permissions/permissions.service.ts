@@ -1,4 +1,4 @@
-import { Role, IRole, Permission, ROLE_PERMISSIONS, getEffectivePermissions, ALL_PERMISSIONS } from './permissions.model';
+import { Role, IRole, Permission, ROLE_PERMISSIONS, getEffectivePermissions, ALL_PERMISSIONS } from './permissions.model.js';
 
 export interface CreateRoleInput {
   name: string;

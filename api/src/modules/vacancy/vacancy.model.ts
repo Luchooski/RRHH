@@ -80,3 +80,4 @@ VacancySchema.index({ tenantId: 1, createdAt: -1 });
 VacancySchema.index({ title: 'text', companyName: 'text' });
 
 export const Vacancy = model<VacancyDoc>('Vacancy', VacancySchema);
+export const VacancyModel = Vacancy;

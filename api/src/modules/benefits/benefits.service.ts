@@ -1,5 +1,5 @@
-import { Benefit, IBenefit, EmployeeBenefit, IEmployeeBenefit, BenefitType, BenefitStatus, EmployeeBenefitStatus } from './benefits.model';
-import { Employee } from '../employee/employee.model';
+import { Benefit, IBenefit, EmployeeBenefit, IEmployeeBenefit, BenefitType, BenefitStatus, EmployeeBenefitStatus } from './benefits.model.js';
+import { Employee } from '../employee/employee.model.js';
 
 // ===== Benefit Catalog Management =====
 
