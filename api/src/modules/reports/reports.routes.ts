@@ -10,6 +10,7 @@ import { Vacancy } from '../vacancy/vacancy.model.js';
 import * as AttendanceReports from './attendance-reports.service.js';
 import * as LeaveReports from './leave-reports.service.js';
 import * as EmployeeReports from './employee-reports.service.js';
+import * as ReportExport from './report-export.service.js';
 
 // ---- Helpers de fechas ----
 function parseDateLoose(s?: string): Date | undefined {
@@ -721,6 +722,456 @@ export default async function reportsRoutes(app: FastifyInstance) {
         return reply.send(result);
       } catch (err: any) {
         return reply.code(400).send({ error: err?.message ?? 'Report error' });
+      }
+    }
+  );
+
+  // ========= EXPORT ENDPOINTS (Excel & PDF) =========
+
+  // Attendance Summary Export
+  r.get(
+    '/attendance/summary.xlsx',
+    {
+      schema: {
+        querystring: z.object({
+          from: z.string(),
+          to: z.string(),
+          employeeId: z.string().optional(),
+          department: z.string().optional(),
+        }),
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { from, to, employeeId, department } = req.query as any;
+        const range = normalizeRange(from, to);
+        const tenantId = (req as any).user?.tenantId || 'default';
+
+        const data = await AttendanceReports.getAttendanceSummaryReport({
+          tenantId,
+          startDate: range.from!,
+          endDate: range.to!,
+          employeeId,
+          department,
+        });
+
+        const filename = `attendance-summary-${from}-${to}.xlsx`;
+
+        return await ReportExport.streamExcelReport(reply, {
+          filename,
+          metadata: {
+            reportType: 'Resumen de Asistencia',
+            generatedBy: (req as any).user?.name || 'Sistema RRHH',
+          },
+          sheets: [
+            {
+              name: 'Resumen Asistencia',
+              title: `Resumen de Asistencia - ${from} a ${to}`,
+              columns: [
+                { header: 'Empleado', key: 'employeeName', width: 25 },
+                { header: 'Total Días', key: 'totalDays', width: 12 },
+                { header: 'Horas Totales', key: 'totalHours', width: 15 },
+                { header: 'Horas Regulares', key: 'totalRegularHours', width: 15 },
+                { header: 'Horas Extra', key: 'totalOvertimeHours', width: 15 },
+                { header: 'Días Presente', key: 'daysPresent', width: 15 },
+                { header: 'Días Ausente', key: 'daysAbsent', width: 15 },
+                { header: 'Días Tarde', key: 'daysLate', width: 12 },
+                { header: 'Días Medio', key: 'daysHalfDay', width: 12 },
+                { header: 'Días Licencia', key: 'daysLeave', width: 15 },
+                { header: 'Días Feriado', key: 'daysHoliday', width: 15 },
+                { header: 'Promedio Hrs/Día', key: 'averageHoursPerDay', width: 18 },
+                { header: 'Tasa Asistencia %', key: 'attendanceRate', width: 18 },
+              ],
+              data: data.map((row: any) => ({
+                employeeName: row.employeeName || 'N/A',
+                totalDays: row.totalDays || 0,
+                totalHours: Math.round((row.totalHours || 0) * 100) / 100,
+                totalRegularHours: Math.round((row.totalRegularHours || 0) * 100) / 100,
+                totalOvertimeHours: Math.round((row.totalOvertimeHours || 0) * 100) / 100,
+                daysPresent: row.daysPresent || 0,
+                daysAbsent: row.daysAbsent || 0,
+                daysLate: row.daysLate || 0,
+                daysHalfDay: row.daysHalfDay || 0,
+                daysLeave: row.daysLeave || 0,
+                daysHoliday: row.daysHoliday || 0,
+                averageHoursPerDay: Math.round((row.averageHoursPerDay || 0) * 100) / 100,
+                attendanceRate: Math.round((row.attendanceRate || 0) * 100) / 100,
+              })),
+              totals: true,
+            },
+          ],
+        });
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Export error' });
+      }
+    }
+  );
+
+  r.get(
+    '/attendance/summary.pdf',
+    {
+      schema: {
+        querystring: z.object({
+          from: z.string(),
+          to: z.string(),
+          employeeId: z.string().optional(),
+          department: z.string().optional(),
+        }),
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { from, to, employeeId, department } = req.query as any;
+        const range = normalizeRange(from, to);
+        const tenantId = (req as any).user?.tenantId || 'default';
+
+        const data = await AttendanceReports.getAttendanceSummaryReport({
+          tenantId,
+          startDate: range.from!,
+          endDate: range.to!,
+          employeeId,
+          department,
+        });
+
+        const filename = `attendance-summary-${from}-${to}.pdf`;
+
+        return await ReportExport.generatePDFReport(reply, {
+          filename,
+          title: 'Resumen de Asistencia',
+          subtitle: `Período: ${from} a ${to}`,
+          metadata: {
+            reportType: 'Asistencia',
+            generatedBy: (req as any).user?.name || 'Sistema RRHH',
+            generatedAt: new Date(),
+          },
+          tables: [
+            {
+              columns: [
+                { header: 'Empleado', key: 'employeeName', width: 3, align: 'left' },
+                { header: 'Días', key: 'totalDays', width: 1, align: 'center' },
+                { header: 'Horas', key: 'totalHours', width: 1.5, align: 'right' },
+                { header: 'Presente', key: 'daysPresent', width: 1.5, align: 'center' },
+                { header: 'Ausente', key: 'daysAbsent', width: 1.5, align: 'center' },
+                { header: 'Asistencia %', key: 'attendanceRate', width: 2, align: 'right' },
+              ],
+              data: data.map((row: any) => ({
+                employeeName: row.employeeName || 'N/A',
+                totalDays: row.totalDays || 0,
+                totalHours: Math.round((row.totalHours || 0) * 10) / 10,
+                daysPresent: row.daysPresent || 0,
+                daysAbsent: row.daysAbsent || 0,
+                attendanceRate: `${Math.round((row.attendanceRate || 0) * 10) / 10}%`,
+              })),
+            },
+          ],
+        });
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Export error' });
+      }
+    }
+  );
+
+  // Leave Balance Export
+  r.get(
+    '/leaves/balance.xlsx',
+    {
+      schema: {
+        querystring: z.object({
+          employeeId: z.string().optional(),
+          department: z.string().optional(),
+        }),
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { employeeId, department } = req.query as any;
+        const tenantId = (req as any).user?.tenantId || 'default';
+
+        const data = await LeaveReports.getLeaveBalanceReport({
+          tenantId,
+          employeeId,
+          department,
+        });
+
+        const filename = `leave-balance-${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+        // Flatten data for Excel
+        const flatData = data.flatMap((emp: any) => {
+          const rows = [];
+          for (const [leaveType, balance] of Object.entries(emp.balances)) {
+            rows.push({
+              employeeName: emp.employeeName,
+              department: emp.department,
+              leaveType,
+              total: (balance as any).total,
+              used: (balance as any).used,
+              pending: (balance as any).pending,
+              available: (balance as any).available,
+            });
+          }
+          return rows;
+        });
+
+        return await ReportExport.streamExcelReport(reply, {
+          filename,
+          metadata: {
+            reportType: 'Balance de Licencias',
+            generatedBy: (req as any).user?.name || 'Sistema RRHH',
+          },
+          sheets: [
+            {
+              name: 'Balance Licencias',
+              title: 'Balance de Licencias por Empleado',
+              columns: [
+                { header: 'Empleado', key: 'employeeName', width: 25 },
+                { header: 'Departamento', key: 'department', width: 20 },
+                { header: 'Tipo Licencia', key: 'leaveType', width: 18 },
+                { header: 'Total Días', key: 'total', width: 12 },
+                { header: 'Usados', key: 'used', width: 10 },
+                { header: 'Pendientes', key: 'pending', width: 12 },
+                { header: 'Disponibles', key: 'available', width: 12 },
+              ],
+              data: flatData,
+              totals: false,
+            },
+          ],
+        });
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Export error' });
+      }
+    }
+  );
+
+  r.get(
+    '/leaves/balance.pdf',
+    {
+      schema: {
+        querystring: z.object({
+          employeeId: z.string().optional(),
+          department: z.string().optional(),
+        }),
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { employeeId, department } = req.query as any;
+        const tenantId = (req as any).user?.tenantId || 'default';
+
+        const data = await LeaveReports.getLeaveBalanceReport({
+          tenantId,
+          employeeId,
+          department,
+        });
+
+        const filename = `leave-balance-${new Date().toISOString().slice(0, 10)}.pdf`;
+
+        // Flatten data for PDF
+        const flatData = data.flatMap((emp: any) => {
+          const rows = [];
+          for (const [leaveType, balance] of Object.entries(emp.balances)) {
+            rows.push({
+              employeeName: emp.employeeName,
+              leaveType,
+              total: (balance as any).total,
+              used: (balance as any).used,
+              available: (balance as any).available,
+            });
+          }
+          return rows;
+        });
+
+        return await ReportExport.generatePDFReport(reply, {
+          filename,
+          title: 'Balance de Licencias',
+          subtitle: 'Estado actual de días de licencia por empleado',
+          metadata: {
+            reportType: 'Licencias',
+            generatedBy: (req as any).user?.name || 'Sistema RRHH',
+            generatedAt: new Date(),
+          },
+          tables: [
+            {
+              columns: [
+                { header: 'Empleado', key: 'employeeName', width: 3, align: 'left' },
+                { header: 'Tipo', key: 'leaveType', width: 2, align: 'left' },
+                { header: 'Total', key: 'total', width: 1.5, align: 'center' },
+                { header: 'Usados', key: 'used', width: 1.5, align: 'center' },
+                { header: 'Disponibles', key: 'available', width: 2, align: 'center' },
+              ],
+              data: flatData,
+            },
+          ],
+        });
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Export error' });
+      }
+    }
+  );
+
+  // Employee Demographics Export
+  r.get(
+    '/employees/demographics.xlsx',
+    {
+      schema: {
+        querystring: z.object({
+          status: z.enum(['active', 'inactive', 'all']).default('active'),
+        }),
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { status } = req.query as any;
+        const tenantId = (req as any).user?.tenantId || 'default';
+
+        const data = await EmployeeReports.getEmployeeDemographics({
+          tenantId,
+          status,
+        });
+
+        const filename = `employee-demographics-${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+        // Prepare data sheets
+        const genderData = (data.byGender || []).map((item: any) => ({
+          gender: item.gender || 'No especificado',
+          count: item.count,
+          percentage: Math.round(item.percentage * 100) / 100,
+        }));
+
+        const departmentData = (data.byDepartment || []).map((item: any) => ({
+          department: item.department || 'No especificado',
+          count: item.count,
+          percentage: Math.round(item.percentage * 100) / 100,
+        }));
+
+        const positionData = (data.byPosition || []).map((item: any) => ({
+          position: item.position || 'No especificado',
+          count: item.count,
+          percentage: Math.round(item.percentage * 100) / 100,
+        }));
+
+        const seniorityData = (data.bySeniority || []).map((item: any) => ({
+          seniority: item.range,
+          count: item.count,
+          percentage: Math.round(item.percentage * 100) / 100,
+        }));
+
+        return await ReportExport.streamExcelReport(reply, {
+          filename,
+          metadata: {
+            reportType: 'Demografía de Empleados',
+            generatedBy: (req as any).user?.name || 'Sistema RRHH',
+          },
+          sheets: [
+            {
+              name: 'Resumen',
+              title: 'Resumen Demográfico',
+              summary: [
+                { label: 'Total Empleados', value: data.totalEmployees || 0 },
+              ],
+              columns: [
+                { header: 'Métrica', key: 'label', width: 30 },
+                { header: 'Valor', key: 'value', width: 15 },
+              ],
+              data: [],
+            },
+            {
+              name: 'Por Género',
+              title: 'Distribución por Género',
+              columns: [
+                { header: 'Género', key: 'gender', width: 20 },
+                { header: 'Cantidad', key: 'count', width: 15 },
+                { header: 'Porcentaje %', key: 'percentage', width: 15 },
+              ],
+              data: genderData,
+            },
+            {
+              name: 'Por Departamento',
+              title: 'Distribución por Departamento',
+              columns: [
+                { header: 'Departamento', key: 'department', width: 25 },
+                { header: 'Cantidad', key: 'count', width: 15 },
+                { header: 'Porcentaje %', key: 'percentage', width: 15 },
+              ],
+              data: departmentData,
+            },
+            {
+              name: 'Por Cargo',
+              title: 'Distribución por Cargo',
+              columns: [
+                { header: 'Cargo', key: 'position', width: 25 },
+                { header: 'Cantidad', key: 'count', width: 15 },
+                { header: 'Porcentaje %', key: 'percentage', width: 15 },
+              ],
+              data: positionData,
+            },
+            {
+              name: 'Por Antigüedad',
+              title: 'Distribución por Antigüedad',
+              columns: [
+                { header: 'Antigüedad', key: 'seniority', width: 25 },
+                { header: 'Cantidad', key: 'count', width: 15 },
+                { header: 'Porcentaje %', key: 'percentage', width: 15 },
+              ],
+              data: seniorityData,
+            },
+          ],
+        });
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Export error' });
+      }
+    }
+  );
+
+  r.get(
+    '/employees/demographics.pdf',
+    {
+      schema: {
+        querystring: z.object({
+          status: z.enum(['active', 'inactive', 'all']).default('active'),
+        }),
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { status } = req.query as any;
+        const tenantId = (req as any).user?.tenantId || 'default';
+
+        const data = await EmployeeReports.getEmployeeDemographics({
+          tenantId,
+          status,
+        });
+
+        const filename = `employee-demographics-${new Date().toISOString().slice(0, 10)}.pdf`;
+
+        const departmentData = (data.byDepartment || []).map((dept: any) => ({
+          department: dept.department || 'No especificado',
+          count: dept.count,
+          percentage: `${Math.round((dept.percentage || 0) * 10) / 10}%`,
+        }));
+
+        return await ReportExport.generatePDFReport(reply, {
+          filename,
+          title: 'Demografía de Empleados',
+          subtitle: `Total: ${data.totalEmployees || 0} empleados`,
+          metadata: {
+            reportType: 'Demografía',
+            generatedBy: (req as any).user?.name || 'Sistema RRHH',
+            generatedAt: new Date(),
+          },
+          tables: [
+            {
+              title: 'Distribución por Departamento',
+              columns: [
+                { header: 'Departamento', key: 'department', width: 4, align: 'left' },
+                { header: 'Cantidad', key: 'count', width: 2, align: 'center' },
+                { header: 'Porcentaje', key: 'percentage', width: 2, align: 'right' },
+              ],
+              data: departmentData,
+            },
+          ],
+        });
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Export error' });
       }
     }
   );
