@@ -1175,4 +1175,251 @@ export default async function reportsRoutes(app: FastifyInstance) {
       }
     }
   );
+
+  // ========= CUSTOM REPORTS (Report Builder) =========
+
+  // List custom reports
+  r.get(
+    '/custom',
+    {
+      schema: {
+        querystring: z.object({
+          reportType: z.enum(['attendance', 'leaves', 'employees', 'payroll']).optional(),
+          includePublic: z.coerce.boolean().optional(),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { reportType, includePublic } = req.query as any;
+        const tenantId = (req as any).user?.tenantId || 'default';
+        const userId = (req as any).user?.id || 'unknown';
+
+        const CustomReportService = await import('./custom-report.service.js');
+        const reports = await CustomReportService.listCustomReports({
+          tenantId,
+          userId,
+          reportType,
+          includePublic,
+        });
+
+        return reply.send(reports);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Error listing reports' });
+      }
+    }
+  );
+
+  // Create custom report
+  r.post(
+    '/custom',
+    {
+      schema: {
+        body: z.object({
+          name: z.string(),
+          description: z.string().optional(),
+          reportType: z.enum(['attendance', 'leaves', 'employees', 'payroll']),
+          fields: z.array(z.string()),
+          filters: z.any(),
+          sortBy: z
+            .object({
+              field: z.string(),
+              order: z.enum(['asc', 'desc']),
+            })
+            .optional(),
+          isPublic: z.boolean().optional(),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const tenantId = (req as any).user?.tenantId || 'default';
+        const userId = (req as any).user?.id || 'unknown';
+        const userName = (req as any).user?.name || 'Unknown User';
+
+        const CustomReportService = await import('./custom-report.service.js');
+        const report = await CustomReportService.createCustomReport({
+          tenantId,
+          userId,
+          userName,
+          ...(req.body as any),
+        });
+
+        return reply.send(report);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Error creating report' });
+      }
+    }
+  );
+
+  // Get custom report by ID
+  r.get(
+    '/custom/:reportId',
+    {
+      schema: {
+        params: z.object({
+          reportId: z.string(),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { reportId } = req.params as any;
+        const tenantId = (req as any).user?.tenantId || 'default';
+        const userId = (req as any).user?.id || 'unknown';
+
+        const CustomReportService = await import('./custom-report.service.js');
+        const report = await CustomReportService.getCustomReportById({
+          tenantId,
+          reportId,
+          userId,
+        });
+
+        return reply.send(report);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Error getting report' });
+      }
+    }
+  );
+
+  // Update custom report
+  r.put(
+    '/custom/:reportId',
+    {
+      schema: {
+        params: z.object({
+          reportId: z.string(),
+        }),
+        body: z.object({
+          name: z.string().optional(),
+          description: z.string().optional(),
+          fields: z.array(z.string()).optional(),
+          filters: z.any().optional(),
+          sortBy: z
+            .object({
+              field: z.string(),
+              order: z.enum(['asc', 'desc']),
+            })
+            .optional(),
+          isPublic: z.boolean().optional(),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { reportId } = req.params as any;
+        const tenantId = (req as any).user?.tenantId || 'default';
+        const userId = (req as any).user?.id || 'unknown';
+
+        const CustomReportService = await import('./custom-report.service.js');
+        const report = await CustomReportService.updateCustomReport({
+          tenantId,
+          reportId,
+          userId,
+          updates: req.body as any,
+        });
+
+        return reply.send(report);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Error updating report' });
+      }
+    }
+  );
+
+  // Delete custom report
+  r.delete(
+    '/custom/:reportId',
+    {
+      schema: {
+        params: z.object({
+          reportId: z.string(),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { reportId } = req.params as any;
+        const tenantId = (req as any).user?.tenantId || 'default';
+        const userId = (req as any).user?.id || 'unknown';
+
+        const CustomReportService = await import('./custom-report.service.js');
+        const result = await CustomReportService.deleteCustomReport({
+          tenantId,
+          reportId,
+          userId,
+        });
+
+        return reply.send(result);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Error deleting report' });
+      }
+    }
+  );
+
+  // Execute custom report
+  r.post(
+    '/custom/:reportId/execute',
+    {
+      schema: {
+        params: z.object({
+          reportId: z.string(),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { reportId } = req.params as any;
+        const tenantId = (req as any).user?.tenantId || 'default';
+        const userId = (req as any).user?.id || 'unknown';
+
+        const CustomReportService = await import('./custom-report.service.js');
+        const result = await CustomReportService.executeCustomReport({
+          tenantId,
+          reportId,
+          userId,
+        });
+
+        return reply.send(result);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Error executing report' });
+      }
+    }
+  );
+
+  // Toggle favorite
+  r.post(
+    '/custom/:reportId/favorite',
+    {
+      schema: {
+        params: z.object({
+          reportId: z.string(),
+        }),
+        response: { 200: z.any(), 400: ErrorSchema },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const { reportId } = req.params as any;
+        const tenantId = (req as any).user?.tenantId || 'default';
+        const userId = (req as any).user?.id || 'unknown';
+
+        const CustomReportService = await import('./custom-report.service.js');
+        const report = await CustomReportService.toggleFavorite({
+          tenantId,
+          reportId,
+          userId,
+        });
+
+        return reply.send(report);
+      } catch (err: any) {
+        return reply.code(400).send({ error: err?.message ?? 'Error toggling favorite' });
+      }
+    }
+  );
 }

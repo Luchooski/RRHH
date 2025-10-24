@@ -55,6 +55,8 @@ import VacancyEditPage from '@/features/vacancies/VacancyEditPage';
 // Reportes
 import ReportsPage from '@/features/reports/ReportsPage';
 import AdvancedReportsPage from '@/features/reports/AdvancedReportsPage';
+import CustomReportsPage from '@/features/reports/CustomReportsPage';
+import ReportBuilderPage from '@/features/reports/ReportBuilderPage';
 
 // Clientes
 import ClientsPage from '../features/clients/ClientsPage';
@@ -159,6 +161,8 @@ const router = createBrowserRouter([
       // Reportes
       { path: 'reportes', element: <ReportsPage /> },
       { path: 'reportes/avanzados', element: <AdvancedReportsPage /> },
+      { path: 'reportes/personalizados', element: <CustomReportsPage /> },
+      { path: 'reportes/crear', element: <ReportBuilderPage /> },
 
       // Analíticas
       { path: 'analiticas', element: <AnalyticsDashboardPage /> },
