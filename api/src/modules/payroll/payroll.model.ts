@@ -7,7 +7,9 @@ export interface Concept { code: string; label: string; type: ConceptType; amoun
 export interface Deduction { code: string; label: string; amount: number; }
 
 export interface PayrollDoc extends Document {
-  employeeId: string; employeeName: string;
+  tenantId: string;
+  employeeId: string;
+  employeeName: string;
   period: string; // YYYY-MM
   type: 'mensual'|'final'|'extraordinaria'|'vacaciones';
   status: PayrollStatus;
@@ -28,7 +30,8 @@ export interface PayrollDoc extends Document {
   notes?: string;
   approvedBy?: string;
 
-  createdAt: Date; updatedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const ConceptSchema = new Schema<Concept>({
@@ -46,6 +49,7 @@ const DeductionSchema = new Schema<Deduction>({
 }, { _id: false });
 
 const PayrollSchema = new Schema<PayrollDoc>({
+  tenantId: { type: String, required: true, index: true },
   employeeId: { type: String, required: true, index: true },
   employeeName: { type: String, required: true },
   period: { type: String, required: true, index: true },
@@ -68,5 +72,10 @@ const PayrollSchema = new Schema<PayrollDoc>({
   notes: String,
   approvedBy: String,
 }, { timestamps: true });
+
+// Índices compuestos para queries por tenant
+PayrollSchema.index({ tenantId: 1, employeeId: 1, period: 1 });
+PayrollSchema.index({ tenantId: 1, status: 1, period: -1 });
+PayrollSchema.index({ tenantId: 1, createdAt: -1 });
 
 export const PayrollModel = model<PayrollDoc>('Payroll', PayrollSchema);

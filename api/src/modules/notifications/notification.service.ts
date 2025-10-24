@@ -1,0 +1,429 @@
+import { Notification, type NotificationType, type NotificationChannel, type NotificationPriority } from './notification.model.js';
+
+// Notification templates
+export const NOTIFICATION_TEMPLATES = {
+  // Leave notifications
+  LEAVE_REQUESTED: {
+    title: 'Nueva Solicitud de Licencia',
+    message: '{{employeeName}} ha solicitado una licencia de tipo {{leaveType}} del {{startDate}} al {{endDate}}.',
+    category: 'leave',
+    type: 'info' as NotificationType,
+    priority: 'normal' as NotificationPriority,
+    actionLabel: 'Ver Solicitud',
+  },
+  LEAVE_APPROVED: {
+    title: 'Licencia Aprobada',
+    message: 'Tu solicitud de licencia del {{startDate}} al {{endDate}} ha sido aprobada por {{approverName}}.',
+    category: 'leave',
+    type: 'success' as NotificationType,
+    priority: 'high' as NotificationPriority,
+    actionLabel: 'Ver Detalles',
+  },
+  LEAVE_REJECTED: {
+    title: 'Licencia Rechazada',
+    message: 'Tu solicitud de licencia del {{startDate}} al {{endDate}} ha sido rechazada. Motivo: {{reason}}',
+    category: 'leave',
+    type: 'warning' as NotificationType,
+    priority: 'high' as NotificationPriority,
+    actionLabel: 'Ver Detalles',
+  },
+
+  // Evaluation notifications
+  EVALUATION_ASSIGNED: {
+    title: 'Nueva Evaluación Asignada',
+    message: 'Se te ha asignado una evaluación de desempeño para {{employeeName}}. Fecha límite: {{dueDate}}',
+    category: 'evaluation',
+    type: 'info' as NotificationType,
+    priority: 'high' as NotificationPriority,
+    actionLabel: 'Completar Evaluación',
+  },
+  EVALUATION_SUBMITTED: {
+    title: 'Evaluación Enviada',
+    message: '{{evaluatorName}} ha completado tu evaluación de desempeño.',
+    category: 'evaluation',
+    type: 'info' as NotificationType,
+    priority: 'normal' as NotificationPriority,
+    actionLabel: 'Ver Resultados',
+  },
+  EVALUATION_DUE_SOON: {
+    title: 'Evaluación Próxima a Vencer',
+    message: 'La evaluación de {{employeeName}} vence en {{daysLeft}} días.',
+    category: 'evaluation',
+    type: 'warning' as NotificationType,
+    priority: 'high' as NotificationPriority,
+    actionLabel: 'Completar Ahora',
+  },
+  EVALUATION_APPROVED: {
+    title: 'Evaluación Aprobada',
+    message: 'Tu evaluación de desempeño ha sido aprobada por {{approverName}}. Puntuación final: {{score}}',
+    category: 'evaluation',
+    type: 'success' as NotificationType,
+    priority: 'high' as NotificationPriority,
+    actionLabel: 'Ver Resultados',
+  },
+
+  // Attendance notifications
+  ATTENDANCE_MISSING: {
+    title: 'Registro de Asistencia Pendiente',
+    message: 'No has registrado tu asistencia el día {{date}}. Por favor, completa tu registro.',
+    category: 'attendance',
+    type: 'warning' as NotificationType,
+    priority: 'normal' as NotificationPriority,
+    actionLabel: 'Registrar Asistencia',
+  },
+  ATTENDANCE_LATE: {
+    title: 'Llegada Tarde Registrada',
+    message: 'Se ha registrado una llegada tarde el {{date}} a las {{time}}.',
+    category: 'attendance',
+    type: 'info' as NotificationType,
+    priority: 'low' as NotificationPriority,
+  },
+
+  // Benefit notifications
+  BENEFIT_ENROLLED: {
+    title: 'Inscripción en Beneficio Confirmada',
+    message: 'Tu inscripción en el beneficio "{{benefitName}}" ha sido confirmada.',
+    category: 'benefit',
+    type: 'success' as NotificationType,
+    priority: 'normal' as NotificationPriority,
+    actionLabel: 'Ver Beneficios',
+  },
+  BENEFIT_EXPIRING: {
+    title: 'Beneficio Próximo a Expirar',
+    message: 'Tu beneficio "{{benefitName}}" expirará el {{expiryDate}}.',
+    category: 'benefit',
+    type: 'warning' as NotificationType,
+    priority: 'normal' as NotificationPriority,
+    actionLabel: 'Renovar',
+  },
+
+  // Payroll notifications
+  PAYROLL_GENERATED: {
+    title: 'Recibo de Sueldo Disponible',
+    message: 'Tu recibo de sueldo del período {{period}} está disponible.',
+    category: 'payroll',
+    type: 'info' as NotificationType,
+    priority: 'high' as NotificationPriority,
+    actionLabel: 'Ver Recibo',
+  },
+
+  // System notifications
+  SYSTEM_ANNOUNCEMENT: {
+    title: '{{title}}',
+    message: '{{message}}',
+    category: 'system',
+    type: 'info' as NotificationType,
+    priority: 'normal' as NotificationPriority,
+  },
+  WORKFLOW_STEP_ASSIGNED: {
+    title: 'Nueva Tarea Asignada',
+    message: 'Se te ha asignado la tarea "{{stepName}}" en el proceso "{{workflowName}}".',
+    category: 'workflow',
+    type: 'info' as NotificationType,
+    priority: 'high' as NotificationPriority,
+    actionLabel: 'Ver Tarea',
+  },
+  WORKFLOW_COMPLETED: {
+    title: 'Proceso Completado',
+    message: 'El proceso "{{workflowName}}" ha sido completado exitosamente.',
+    category: 'workflow',
+    type: 'success' as NotificationType,
+    priority: 'normal' as NotificationPriority,
+  },
+  WORKFLOW_REJECTED: {
+    title: 'Proceso Rechazado',
+    message: 'El proceso "{{workflowName}}" ha sido rechazado en el paso "{{stepName}}". Motivo: {{reason}}',
+    category: 'workflow',
+    type: 'warning' as NotificationType,
+    priority: 'high' as NotificationPriority,
+  },
+};
+
+// Replace template variables
+function replaceVariables(template: string, variables: Record<string, any>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(variables)) {
+    result = result.replace(new RegExp(`{{${key}}}`, 'g'), String(value));
+  }
+  return result;
+}
+
+// Create notification
+export async function createNotification(params: {
+  tenantId: string;
+  userId: string;
+  userName: string;
+  userEmail?: string;
+  templateKey?: keyof typeof NOTIFICATION_TEMPLATES;
+  title?: string;
+  message?: string;
+  type?: NotificationType;
+  channels?: NotificationChannel[];
+  priority?: NotificationPriority;
+  category?: string;
+  actionUrl?: string;
+  actionLabel?: string;
+  data?: Record<string, any>;
+  variables?: Record<string, any>;
+}): Promise<any> {
+  const {
+    tenantId,
+    userId,
+    userName,
+    userEmail,
+    templateKey,
+    title,
+    message,
+    type,
+    channels = ['in-app'],
+    priority,
+    category,
+    actionUrl,
+    actionLabel,
+    data,
+    variables = {},
+  } = params;
+
+  let notificationData: any = {
+    tenantId,
+    userId,
+    userName,
+    userEmail,
+    channels,
+  };
+
+  if (templateKey && NOTIFICATION_TEMPLATES[templateKey]) {
+    const template = NOTIFICATION_TEMPLATES[templateKey];
+    notificationData = {
+      ...notificationData,
+      title: replaceVariables(template.title, variables),
+      message: replaceVariables(template.message, variables),
+      type: template.type,
+      priority: template.priority,
+      category: template.category,
+      actionLabel: (template as any).actionLabel,
+    };
+  }
+
+  // Override with provided values
+  if (title) notificationData.title = title;
+  if (message) notificationData.message = message;
+  if (type) notificationData.type = type;
+  if (priority) notificationData.priority = priority;
+  if (category) notificationData.category = category;
+  if (actionUrl) notificationData.actionUrl = actionUrl;
+  if (actionLabel) notificationData.actionLabel = actionLabel;
+  if (data) notificationData.data = data;
+
+  notificationData.sentAt = new Date();
+
+  const notification = await Notification.create(notificationData);
+
+  // TODO: Implement actual email/push sending here
+  // For now, just mark as sent
+  if (channels.includes('email') && userEmail) {
+    (notification as any).emailSent = true;
+    (notification as any).emailSentAt = new Date();
+  }
+  if (channels.includes('push')) {
+    (notification as any).pushSent = true;
+    (notification as any).pushSentAt = new Date();
+  }
+
+  await notification.save();
+
+  return (notification as any).toObject();
+}
+
+// Get user notifications
+export async function getUserNotifications(params: {
+  tenantId: string;
+  userId: string;
+  isRead?: boolean;
+  category?: string;
+  limit?: number;
+  skip?: number;
+}): Promise<any> {
+  const { tenantId, userId, isRead, category, limit = 50, skip = 0 } = params;
+
+  const query: any = { tenantId, userId };
+  if (isRead !== undefined) query.isRead = isRead;
+  if (category) query.category = category;
+
+  const notifications = await Notification.find(query)
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .skip(skip)
+    .lean();
+
+  const total = await Notification.countDocuments(query);
+
+  return {
+    notifications,
+    total,
+    limit,
+    skip,
+  };
+}
+
+// Mark notification as read
+export async function markAsRead(params: {
+  tenantId: string;
+  userId: string;
+  notificationId: string;
+}): Promise<any> {
+  const { tenantId, userId, notificationId } = params;
+
+  const notification = await Notification.findOneAndUpdate(
+    { _id: notificationId, tenantId, userId },
+    { isRead: true, readAt: new Date() },
+    { new: true }
+  );
+
+  if (!notification) {
+    throw new Error('Notification not found');
+  }
+
+  return notification.toObject();
+}
+
+// Mark all as read
+export async function markAllAsRead(params: {
+  tenantId: string;
+  userId: string;
+}): Promise<any> {
+  const { tenantId, userId } = params;
+
+  const result = await Notification.updateMany(
+    { tenantId, userId, isRead: false },
+    { isRead: true, readAt: new Date() }
+  );
+
+  return {
+    success: true,
+    modifiedCount: result.modifiedCount,
+  };
+}
+
+// Delete notification
+export async function deleteNotification(params: {
+  tenantId: string;
+  userId: string;
+  notificationId: string;
+}): Promise<any> {
+  const { tenantId, userId, notificationId } = params;
+
+  const result = await Notification.deleteOne({
+    _id: notificationId,
+    tenantId,
+    userId,
+  });
+
+  if (result.deletedCount === 0) {
+    throw new Error('Notification not found');
+  }
+
+  return { success: true };
+}
+
+// Get notification stats
+export async function getNotificationStats(params: {
+  tenantId: string;
+  userId: string;
+}): Promise<any> {
+  const { tenantId, userId } = params;
+
+  const total = await Notification.countDocuments({ tenantId, userId });
+  const unread = await Notification.countDocuments({ tenantId, userId, isRead: false });
+  const byCategory = await Notification.aggregate([
+    { $match: { tenantId, userId } },
+    { $group: { _id: '$category', count: { $sum: 1 } } },
+  ]);
+
+  const categoryMap: Record<string, number> = {};
+  for (const item of byCategory) {
+    categoryMap[item._id] = item.count;
+  }
+
+  return {
+    total,
+    unread,
+    read: total - unread,
+    byCategory: categoryMap,
+  };
+}
+
+// Bulk create notifications (for mass notifications)
+export async function bulkCreateNotifications(params: {
+  tenantId: string;
+  users: Array<{ userId: string; userName: string; userEmail?: string }>;
+  templateKey?: keyof typeof NOTIFICATION_TEMPLATES;
+  title?: string;
+  message?: string;
+  type?: NotificationType;
+  channels?: NotificationChannel[];
+  priority?: NotificationPriority;
+  category?: string;
+  actionUrl?: string;
+  actionLabel?: string;
+  data?: Record<string, any>;
+  variables?: Record<string, any>;
+}): Promise<any> {
+  const {
+    tenantId,
+    users,
+    templateKey,
+    title,
+    message,
+    type,
+    channels = ['in-app'],
+    priority,
+    category,
+    actionUrl,
+    actionLabel,
+    data,
+    variables = {},
+  } = params;
+
+  const notifications = users.map((user) => {
+    let notificationData: any = {
+      tenantId,
+      userId: user.userId,
+      userName: user.userName,
+      userEmail: user.userEmail,
+      channels,
+      sentAt: new Date(),
+    };
+
+    if (templateKey && NOTIFICATION_TEMPLATES[templateKey]) {
+      const template = NOTIFICATION_TEMPLATES[templateKey];
+      notificationData = {
+        ...notificationData,
+        title: replaceVariables(template.title, variables),
+        message: replaceVariables(template.message, variables),
+        type: template.type,
+        priority: template.priority,
+        category: template.category,
+        actionLabel: (template as any).actionLabel,
+      };
+    }
+
+    if (title) notificationData.title = title;
+    if (message) notificationData.message = message;
+    if (type) notificationData.type = type;
+    if (priority) notificationData.priority = priority;
+    if (category) notificationData.category = category;
+    if (actionUrl) notificationData.actionUrl = actionUrl;
+    if (actionLabel) notificationData.actionLabel = actionLabel;
+    if (data) notificationData.data = data;
+
+    return notificationData;
+  });
+
+  const result = await Notification.insertMany(notifications);
+
+  return {
+    success: true,
+    count: result.length,
+  };
+}

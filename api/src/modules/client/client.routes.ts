@@ -33,14 +33,16 @@ export const clientRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'GET',
     url: '/clients',
+    onRequest: [app.authGuard],
     schema: {
       querystring: ClientListQuery,
       response: { 200: ClientListOutput },
       tags: ['clients'],
     },
     handler: async (req) => {
+      const tenantId = (req as any).user.tenantId;
       const { q, size, industry, page, limit } = req.query;
-      const filter: any = {};
+      const filter: any = { tenantId };
       if (q) {
         const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'); // escape RegExp
         filter.$or = [
@@ -73,12 +75,14 @@ export const clientRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'GET',
     url: '/clients/:id',
+    onRequest: [app.authGuard],
     schema: {
       params: z.object({ id: z.string() }),
       response: { 200: ClientOutput, 404: ErrorDTO },
     },
     handler: async (req, reply) => {
-      const c = await Client.findById(req.params.id).lean();
+      const tenantId = (req as any).user.tenantId;
+      const c = await Client.findOne({ _id: req.params.id, tenantId }).lean();
       if (!c) return reply.code(404).send({ error: 'Not found' });
       return toOut(c);
     },
@@ -88,12 +92,14 @@ export const clientRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'POST',
     url: '/clients',
+    onRequest: [app.authGuard],
     schema: {
       body: ClientCreateInput,
       response: { 201: ClientOutput },
     },
     handler: async (req, reply) => {
-      const created = await Client.create(req.body);
+      const tenantId = (req as any).user.tenantId;
+      const created = await Client.create({ ...req.body, tenantId });
       return reply.code(201).send(toOut(created));
     },
   });
@@ -102,14 +108,16 @@ export const clientRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'PATCH',
     url: '/clients/:id',
+    onRequest: [app.authGuard],
     schema: {
       params: z.object({ id: z.string() }),
       body: ClientUpdateInput,
       response: { 200: ClientOutput, 404: ErrorDTO },
     },
     handler: async (req, reply) => {
-      const updated = await Client.findByIdAndUpdate(
-        req.params.id,
+      const tenantId = (req as any).user.tenantId;
+      const updated = await Client.findOneAndUpdate(
+        { _id: req.params.id, tenantId },
         { $set: req.body },
         { new: true }
       ).lean();
@@ -122,12 +130,14 @@ export const clientRoutes: FastifyPluginAsync = async (app) => {
   r.route({
     method: 'DELETE',
     url: '/clients/:id',
+    onRequest: [app.authGuard],
     schema: {
       params: z.object({ id: z.string() }),
       response: { 200: OkDTO, 404: ErrorDTO },
     },
     handler: async (req, reply) => {
-      const deleted = await Client.findByIdAndDelete(req.params.id).lean();
+      const tenantId = (req as any).user.tenantId;
+      const deleted = await Client.findOneAndDelete({ _id: req.params.id, tenantId }).lean();
       if (!deleted) return reply.code(404).send({ error: 'Not found' });
       return { ok: true as const };
     },

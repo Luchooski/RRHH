@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useListPayrolls, useGetPayroll, useCreatePayroll, useUpdatePayroll, useUpdateStatus } from './hooks';
 import type { Payroll, ListOut } from './dto';
 import PayrollDetailDrawer from './PayrollDetailDrawer';
 import PayrollFormModal from './PayrollFormModal';
+import BatchPayrollModal from './BatchPayrollModal';
 import { StatusBadge } from './StatusBadge';
 import { toCsv, downloadCsv } from './csv';
+import { FileText, Users } from 'lucide-react';
 
 type Tab = 'Todos'|'pendiente'|'aprobada'|'pagada'|'anulada';
 
@@ -13,6 +16,7 @@ export default function PayrollPage() {
   const [active, setActive] = useState<Tab>('Todos');
   const [selectedId, setSelectedId] = useState<string | undefined>();
   const [formOpen, setFormOpen] = useState(false);
+  const [batchModalOpen, setBatchModalOpen] = useState(false);
   const [editRow, setEditRow] = useState<Payroll | undefined>();
 
   const { data, isLoading } = useListPayrolls({ ...query, status: active==='Todos'? undefined : active });
@@ -47,9 +51,25 @@ export default function PayrollPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-bold">Liquidaciones</h1>
-        <button className="ml-auto border rounded-lg px-3 py-2" onClick={()=>{ setEditRow(undefined); setFormOpen(true); }}>Nueva</button>
-        <button className="border rounded-lg px-3 py-2" onClick={exportar}>Exportar CSV</button>
+        <Link
+          to="/payroll/reports"
+          className="ml-auto flex items-center gap-2 border rounded-lg px-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition"
+        >
+          <FileText size={16} />
+          Reportes
+        </Link>
+        <button
+          className="flex items-center gap-2 bg-blue-600 text-white rounded-lg px-3 py-2 hover:bg-blue-700 transition"
+          onClick={() => setBatchModalOpen(true)}
+        >
+          <Users size={16} />
+          Liquidación Masiva
+        </button>
+        <button className="border rounded-lg px-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition" onClick={()=>{ setEditRow(undefined); setFormOpen(true); }}>Nueva</button>
+        <button className="border rounded-lg px-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition" onClick={exportar}>Exportar CSV</button>
       </div>
+
+      <BatchPayrollModal isOpen={batchModalOpen} onClose={() => setBatchModalOpen(false)} />
 
       <div className="grid grid-cols-3 gap-4">
         <Kpi title="Cantidad" value={String(kpis.count)} />

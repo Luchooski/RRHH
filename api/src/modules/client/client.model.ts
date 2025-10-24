@@ -3,6 +3,7 @@ import { Schema, model, type Document } from 'mongoose';
 export type ClientSize = 'small' | 'medium' | 'large';
 
 export interface ClientDoc extends Document {
+  tenantId: string;
   name: string;
   industry?: string;
   size: ClientSize;
@@ -16,6 +17,7 @@ export interface ClientDoc extends Document {
 
 const ClientSchema = new Schema<ClientDoc>(
   {
+    tenantId: { type: String, required: true, index: true },
     name: { type: String, required: true, trim: true },
     industry: { type: String, trim: true },
     size: { type: String, enum: ['small', 'medium', 'large'], required: true },
@@ -27,8 +29,9 @@ const ClientSchema = new Schema<ClientDoc>(
   { timestamps: true }
 );
 
-// Índices útiles
+// Índices compuestos para queries por tenant
+ClientSchema.index({ tenantId: 1, createdAt: -1 });
+ClientSchema.index({ tenantId: 1, size: 1 });
 ClientSchema.index({ name: 'text', industry: 'text', contactName: 'text', contactEmail: 'text' });
-ClientSchema.index({ createdAt: -1 });
 
 export const Client = model<ClientDoc>('Client', ClientSchema);

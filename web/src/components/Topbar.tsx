@@ -2,6 +2,7 @@ import { Menu, History, LogOut, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/auth';
 import ThemeToggle from './ThemeToggle';
+import NotificationBell from '@/features/notifications/NotificationBell';
 
 
 interface TopbarProps {
@@ -15,6 +16,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/entrevistas': 'Entrevistas',
   '/cargar-cv': 'Cargar CV',
   '/empleados': 'Empleados',
+  '/licencias': 'Licencias',
   '/liquidaciones': 'Liquidaciones',
   '/horarios': 'Horarios',
   '/historial': 'Historial',
@@ -95,6 +97,9 @@ export default function Topbar({ onOpenHistory, onToggleSidebar }: TopbarProps) 
               <span className="hidden sm:inline">Historial</span>
             </button>
           )}
+
+          {/* Notifications */}
+          {user && <NotificationBell />}
 
           {/* Theme toggle */}
           <ThemeToggle />

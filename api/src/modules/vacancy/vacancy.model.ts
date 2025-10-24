@@ -17,6 +17,7 @@ export interface NoteItem {
 }
 
 export interface VacancyDoc extends Document {
+  tenantId: string;
   title: string;
   status: VacancyStatus;
   companyId?: Types.ObjectId;
@@ -55,6 +56,7 @@ const NoteItemSchema = new Schema<NoteItem>(
 
 const VacancySchema = new Schema<VacancyDoc>(
   {
+    tenantId: { type: String, required: true, index: true },
     title: { type: String, required: true, trim: true },
     status: { type: String, enum: ['open', 'paused', 'closed'], default: 'open', index: true },
     companyId: { type: Schema.Types.ObjectId, ref: 'Company' },
@@ -72,7 +74,9 @@ const VacancySchema = new Schema<VacancyDoc>(
   { timestamps: true }
 );
 
-VacancySchema.index({ status: 1, updatedAt: -1 });
+// Índices compuestos para queries por tenant
+VacancySchema.index({ tenantId: 1, status: 1, updatedAt: -1 });
+VacancySchema.index({ tenantId: 1, createdAt: -1 });
 VacancySchema.index({ title: 'text', companyName: 'text' });
 
 export const Vacancy = model<VacancyDoc>('Vacancy', VacancySchema);

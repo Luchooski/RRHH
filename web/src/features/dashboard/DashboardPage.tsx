@@ -16,6 +16,8 @@ import { listVacancies } from '@/features/vacancies/api';
 import type { InterviewDTO } from '@/features/interviews/calendar.schema';
 import type { VacancyDTO } from '@/features/vacancies/vacancy.schema';
 import Empty from '@/components/ui/Empty';
+import { CareersUrlWidget } from '@/components/dashboard/CareersUrlWidget';
+import { TrendsChart } from '@/components/dashboard/TrendsChart';
 
 export default function DashboardPage() {
   // KPIs (reportes)
@@ -101,6 +103,9 @@ export default function DashboardPage() {
           <KpiCard label="Tiempo de cierre (días)" value={ttc?.avgDays ?? 0} icon={<Timer className="size-5" />} tone="amber" />
         </section>
 
+        {/* Careers URL Widget */}
+        <CareersUrlWidget />
+
         {/* Conversión + Próximas entrevistas */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <div className="rounded-2xl border bg-white/65 dark:bg-zinc-900/40 backdrop-blur-sm border-zinc-200/80 dark:border-white/10 p-3 shadow-sm lg:col-span-2">
@@ -167,6 +172,9 @@ export default function DashboardPage() {
             )}
           </div>
         </section>
+
+        {/* Tendencias de aplicaciones */}
+        <TrendsChart />
 
         {/* Vacantes abiertas */}
         <section className="rounded-2xl border bg-white/65 dark:bg-zinc-900/40 backdrop-blur-sm border-zinc-200/80 dark:border-white/10 p-3 shadow-sm">
