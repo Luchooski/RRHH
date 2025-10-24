@@ -26,6 +26,7 @@ import publicApplicationRoutes from './modules/public-application/public-applica
 import leaveRoutes from './modules/leave/leave.routes.js';
 import auditRoutes from './modules/audit/audit.routes.js';
 import notificationRoutes from './modules/notification/notification.routes.js';
+import notificationsV2Routes from './modules/notifications/notifications.routes.js';
 import attendanceRoutes from './modules/attendance/attendance.routes.js';
 import permissionsRoutes from './modules/permissions/permissions.routes.js';
 import benefitsRoutes from './modules/benefits/benefits.routes.js';
@@ -149,6 +150,9 @@ export async function buildApp() {
 
   await app.withTypeProvider<ZodTypeProvider>().register(evaluationsRoutes, { prefix: '/api/v1/evaluations' });
   app.log.info('evaluationsRoutes registered at /api/v1/evaluations');
+
+  await app.withTypeProvider<ZodTypeProvider>().register(notificationsV2Routes, { prefix: '/api/v1' });
+  app.log.info('notificationsV2Routes registered at /api/v1');
 
   // Public routes (no authentication required)
   await app.withTypeProvider<ZodTypeProvider>().register(publicApplicationRoutes, { prefix: '/api/v1/public' });
