@@ -1,4 +1,5 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import { Schema, type HydratedDocument, type Model } from 'mongoose';
+import { getConnection } from '../../config/db';
 
 export type NotificationType = 'info' | 'success' | 'warning' | 'error';
 export type NotificationChannel = 'in-app' | 'email' | 'push' | 'sms';
@@ -14,7 +15,7 @@ export interface INotification {
   priority: NotificationPriority;
   title: string;
   message: string;
-  category: string; // 'leave', 'evaluation', 'attendance', 'benefit', 'payroll', 'system', etc.
+  category: string;
   actionUrl?: string;
   actionLabel?: string;
   data?: Record<string, any>;
@@ -29,7 +30,7 @@ export interface INotification {
   updatedAt: Date;
 }
 
-export type NotificationDoc = INotification & Document;
+export type NotificationDoc = HydratedDocument<INotification>;
 
 const NotificationSchema = new Schema<INotification>(
   {
@@ -37,22 +38,9 @@ const NotificationSchema = new Schema<INotification>(
     userId: { type: String, required: true, index: true },
     userName: { type: String, required: true },
     userEmail: { type: String },
-    type: {
-      type: String,
-      enum: ['info', 'success', 'warning', 'error'],
-      default: 'info',
-    },
-    channels: [
-      {
-        type: String,
-        enum: ['in-app', 'email', 'push', 'sms'],
-      },
-    ],
-    priority: {
-      type: String,
-      enum: ['low', 'normal', 'high', 'urgent'],
-      default: 'normal',
-    },
+    type: { type: String, enum: ['info','success','warning','error'], default: 'info' },
+    channels: [{ type: String, enum: ['in-app','email','push','sms'] }],
+    priority: { type: String, enum: ['low','normal','high','urgent'], default: 'normal' },
     title: { type: String, required: true },
     message: { type: String, required: true },
     category: { type: String, required: true, index: true },
@@ -65,16 +53,25 @@ const NotificationSchema = new Schema<INotification>(
     emailSent: { type: Boolean, default: false },
     emailSentAt: { type: Date },
     pushSent: { type: Boolean, default: false },
-    pushSentAt: { type: Date },
+    pushSentAt: { type: Date }
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// Compound indexes for common queries
 NotificationSchema.index({ tenantId: 1, userId: 1, isRead: 1 });
 NotificationSchema.index({ tenantId: 1, userId: 1, createdAt: -1 });
 NotificationSchema.index({ tenantId: 1, category: 1, createdAt: -1 });
 
-export const Notification = mongoose.model('Notification', NotificationSchema);
+declare global {
+  // eslint-disable-next-line no-var
+  var _NotificationModel: Model<INotification> | undefined;
+}
+
+export function getNotificationModel(): Model<INotification> {
+  if (global._NotificationModel) return global._NotificationModel;
+  const conn = getConnection();
+  global._NotificationModel =
+    (conn.models.Notification as Model<INotification>) ||
+    conn.model<INotification>('Notification', NotificationSchema);
+  return global._NotificationModel;
+}
