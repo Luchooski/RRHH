@@ -77,12 +77,12 @@ export default async function publicApplicationRoutes(app: FastifyInstance) {
             logo: (tenant as any).branding?.logo,
             primaryColor: (tenant as any).branding?.primaryColor
           },
-          vacancies: vacancies.map((v: VacancyDoc) => ({
+          vacancies: vacancies.map((v: any) => ({
             id: String(v._id),
             title: v.title,
-            description: (v as any).description,
-            location: (v as any).location,
-            employmentType: (v as any).employmentType,
+            description: v.description,
+            location: v.location,
+            employmentType: v.employmentType,
             status: v.status
           }))
         });

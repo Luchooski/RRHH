@@ -11,6 +11,20 @@ import {
 } from './leave.dto.js';
 import * as service from './leave.service.js';
 
+// Helper to convert LeaveDoc to output format
+function mapLeaveToOutput(leave: any) {
+  return {
+    ...leave,
+    id: leave.id || String(leave._id),
+    startDate: leave.startDate instanceof Date ? leave.startDate.toISOString() : leave.startDate,
+    endDate: leave.endDate instanceof Date ? leave.endDate.toISOString() : leave.endDate,
+    requestedAt: leave.requestedAt instanceof Date ? leave.requestedAt.toISOString() : leave.requestedAt,
+    approvedAt: leave.approvedAt instanceof Date ? leave.approvedAt.toISOString() : leave.approvedAt,
+    createdAt: leave.createdAt instanceof Date ? leave.createdAt.toISOString() : leave.createdAt,
+    updatedAt: leave.updatedAt instanceof Date ? leave.updatedAt.toISOString() : leave.updatedAt,
+  };
+}
+
 export default async function leaveRoutes(app: FastifyInstance) {
   const r = app.withTypeProvider<ZodTypeProvider>();
 
@@ -31,7 +45,7 @@ export default async function leaveRoutes(app: FastifyInstance) {
       try {
         const user = (req as any).user;
         const leave = await service.createLeaveRequest(user.tenantId, req.body as any);
-        return reply.code(201).send(leave);
+        return reply.code(201).send(mapLeaveToOutput(leave));
       } catch (error: any) {
         if (error.message === 'EMPLOYEE_NOT_FOUND') {
           return reply.code(404).send({ error: 'Empleado no encontrado' });
@@ -61,7 +75,10 @@ export default async function leaveRoutes(app: FastifyInstance) {
     handler: async (req, reply) => {
       const user = (req as any).user;
       const result = await service.listLeaves(user.tenantId, req.query);
-      return result;
+      return {
+        items: result.items.map(mapLeaveToOutput),
+        total: result.total
+      };
     }
   });
 
@@ -83,7 +100,7 @@ export default async function leaveRoutes(app: FastifyInstance) {
         return reply.code(404).send({ error: 'Licencia no encontrada' });
       }
 
-      return leave;
+      return mapLeaveToOutput(leave);
     }
   });
 

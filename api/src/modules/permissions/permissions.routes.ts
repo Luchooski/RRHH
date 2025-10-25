@@ -102,7 +102,7 @@ export default async function permissionsRoutes(app: FastifyInstance) {
       try {
         const user = getReqUser(req);
         const body = req.body;
-        const role = await svc.createRole(user.tenantId, body);
+        const role = await svc.createRole(user.tenantId, body as any);
         return reply.code(201).send(role);
       } catch (error: any) {
         return reply.code(400).send({ error: 'Error', message: error.message });
@@ -130,7 +130,7 @@ export default async function permissionsRoutes(app: FastifyInstance) {
         const user = getReqUser(req);
         const { id } = req.params;
         const body = req.body;
-        const role = await svc.updateRole(user.tenantId, id, body);
+        const role = await svc.updateRole(user.tenantId, id, body as any);
         return reply.code(200).send(role);
       } catch (error: any) {
         if (error.message === 'Rol no encontrado') {

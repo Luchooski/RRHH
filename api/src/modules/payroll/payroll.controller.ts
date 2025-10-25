@@ -29,7 +29,7 @@ export async function create(req: Request, res: Response, next: NextFunction) {
   try {
     const input = PayrollCreateSchema.parse(req.body);
     const tenantId = (req as any).user?.tenantId;
-    const created = await Service.createPayroll({ ...input, tenantId });
+    const created = await Service.createPayroll(input, tenantId);
     res.status(201).json(PayrollOutputSchema.parse(mapId(created)));
   } catch (err) { next(err); }
 }
