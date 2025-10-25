@@ -145,7 +145,7 @@ export async function createPayrollWithAutoCalc(params: {
   const employee = await Employee.findOne({ _id: employeeId, tenantId }).lean();
   if (!employee) throw new Error('Employee not found');
 
-  const baseSalary = employee.salary || 0;
+  const baseSalary = employee.baseSalary || 0;
   const employeeName = employee.name;
 
   let concepts: any[] = [];

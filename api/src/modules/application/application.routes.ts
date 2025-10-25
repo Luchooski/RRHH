@@ -98,7 +98,7 @@ export const applicationRoutes: FastifyPluginAsync = async (app) => {
               rejected: 'No Seleccionado/a',
             };
 
-            const newStageName = statusLabels[req.body.status] || req.body.status;
+            const newStageName = req.body.status ? (statusLabels[req.body.status] || req.body.status) : 'Actualizado';
 
             // Enviar email (sin bloquear la respuesta)
             sendPipelineStageChangeEmail(

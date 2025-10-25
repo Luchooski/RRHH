@@ -131,7 +131,7 @@ export const employeePortalRoutes: FastifyPluginAsync = async (app) => {
         role: employee.role,
         baseSalary: employee.baseSalary,
         monthlyHours: employee.monthlyHours,
-        phone: employee.phone,
+        phone: employee.phone ?? undefined,
       };
     },
   });
@@ -338,7 +338,7 @@ export const employeePortalRoutes: FastifyPluginAsync = async (app) => {
           fileType: a.fileType as any,
           mimeType: a.mimeType,
           size: a.size,
-          description: a.description,
+          description: a.description ?? undefined,
           createdAt: new Date(a.createdAt).toISOString(),
         })),
         total: attachments.length,

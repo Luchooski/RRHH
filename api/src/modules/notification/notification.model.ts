@@ -41,7 +41,9 @@ interface INotification {
   updatedAt: Date;
 }
 
-const NotificationSchema = new Schema<INotification>({
+export type NotificationDoc = INotification & mongoose.Document & { id: string };
+
+const NotificationSchema = new Schema<NotificationDoc>({
   tenantId: { type: String, required: true, index: true },
   userId: { type: String, required: true, index: true },
   userName: { type: String, required: true },
@@ -103,8 +105,6 @@ const transform = (_doc: any, ret: any) => {
 
 NotificationSchema.set('toJSON', { virtuals: true, transform });
 NotificationSchema.set('toObject', { virtuals: true, transform });
-
-export type NotificationDoc = INotification & mongoose.Document & { id: string };
 
 export const Notification = mongoose.model<NotificationDoc>('Notification', NotificationSchema);
 

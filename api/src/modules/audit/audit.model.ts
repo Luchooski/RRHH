@@ -34,7 +34,9 @@ interface IAuditLog {
   timestamp: Date;
 }
 
-const AuditLogSchema = new Schema<IAuditLog>({
+export type AuditLogDoc = IAuditLog & mongoose.Document;
+
+const AuditLogSchema = new Schema<AuditLogDoc>({
   tenantId: { type: String, required: true, index: true },
   userId: { type: String, required: true, index: true },
   userName: { type: String, required: true },
@@ -75,8 +77,6 @@ AuditLogSchema.index({ resourceId: 1, timestamp: -1 });
 
 // TTL index: auto-eliminar logs después de 1 año (opcional)
 AuditLogSchema.index({ timestamp: 1 }, { expireAfterSeconds: 365 * 24 * 60 * 60 });
-
-export type AuditLogDoc = IAuditLog & mongoose.Document;
 
 export const AuditLog = mongoose.model<AuditLogDoc>('AuditLog', AuditLogSchema);
 
