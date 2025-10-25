@@ -1,5 +1,4 @@
 import { getNotificationModel, type NotificationType, type NotificationChannel, type NotificationPriority } from './notification.model.js';
-
 // Notification templates
 export const NOTIFICATION_TEMPLATES = {
   // Leave notifications
@@ -166,6 +165,7 @@ export async function createNotification(params: {
   data?: Record<string, any>;
   variables?: Record<string, any>;
 }): Promise<any> {
+  const Notification = getNotificationModel();
   const {
     tenantId,
     userId,
@@ -217,22 +217,21 @@ export async function createNotification(params: {
 
   notificationData.sentAt = new Date();
 
-  const notification = await getNotificationModel.create(notificationData);
+  const notification = await Notification.create(notificationData);
 
   // TODO: Implement actual email/push sending here
   // For now, just mark as sent
   if (channels.includes('email') && userEmail) {
-    (getNotificationModel as any).emailSent = true;
-    (getNotificationModel as any).emailSentAt = new Date();
+    notification.emailSent = true;
+    notification.emailSentAt = new Date();
   }
   if (channels.includes('push')) {
-    (getNotificationModel as any).pushSent = true;
-    (getNotificationModel as any).pushSentAt = new Date();
+    notification.pushSent = true;
+    notification.pushSentAt = new Date();
   }
 
   await notification.save();
-
-  return (getNotificationModel as any).toObject();
+  return notification.toObject();
 }
 
 // Get user notifications
@@ -245,18 +244,19 @@ export async function getUserNotifications(params: {
   skip?: number;
 }): Promise<any> {
   const { tenantId, userId, isRead, category, limit = 50, skip = 0 } = params;
+  const Notification = getNotificationModel();
 
   const query: any = { tenantId, userId };
   if (isRead !== undefined) query.isRead = isRead;
   if (category) query.category = category;
 
-  const notifications = await getNotificationModel.find(query)
+  const notifications = await Notification.find(query)
     .sort({ createdAt: -1 })
     .limit(limit)
     .skip(skip)
     .lean();
 
-  const total = await getNotificationModel.countDocuments(query);
+  const total = await Notification.countDocuments(query);
 
   return {
     notifications,
@@ -274,7 +274,7 @@ export async function markAsRead(params: {
 }): Promise<any> {
   const { tenantId, userId, notificationId } = params;
 
-  const notification = await getNotificationModel.findOneAndUpdate(
+  const notification = await Notification.findOneAndUpdate(
     { _id: notificationId, tenantId, userId },
     { isRead: true, readAt: new Date() },
     { new: true }
@@ -293,8 +293,9 @@ export async function markAllAsRead(params: {
   userId: string;
 }): Promise<any> {
   const { tenantId, userId } = params;
+  const Notification = getNotificationModel();
 
-  const result = await getNotificationModel.updateMany(
+  const result = await Notification.updateMany(
     { tenantId, userId, isRead: false },
     { isRead: true, readAt: new Date() }
   );
@@ -312,8 +313,9 @@ export async function deleteNotification(params: {
   notificationId: string;
 }): Promise<any> {
   const { tenantId, userId, notificationId } = params;
+  const Notification = getNotificationModel();
 
-  const result = await getNotificationModel.deleteOne({
+  const result = await Notification.deleteOne({
     _id: notificationId,
     tenantId,
     userId,
@@ -332,10 +334,11 @@ export async function getNotificationStats(params: {
   userId: string;
 }): Promise<any> {
   const { tenantId, userId } = params;
+  const Notification = getNotificationModel();
 
-  const total = await getNotificationModel.countDocuments({ tenantId, userId });
-  const unread = await getNotificationModel.countDocuments({ tenantId, userId, isRead: false });
-  const byCategory = await getNotificationModel.aggregate([
+  const total = await Notification.countDocuments({ tenantId, userId });
+  const unread = await Notification.countDocuments({ tenantId, userId, isRead: false });
+  const byCategory = await Notification.aggregate([
     { $match: { tenantId, userId } },
     { $group: { _id: '$category', count: { $sum: 1 } } },
   ]);
@@ -369,6 +372,7 @@ export async function bulkCreateNotifications(params: {
   data?: Record<string, any>;
   variables?: Record<string, any>;
 }): Promise<any> {
+  const Notification = getNotificationModel();
   const {
     tenantId,
     users,
@@ -420,7 +424,7 @@ export async function bulkCreateNotifications(params: {
     return notificationData;
   });
 
-  const result = await getNotificationModel.insertMany(notifications);
+  const result = await Notification.insertMany(notifications);
 
   return {
     success: true,
