@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { getNotificationModel } from './notification.model.js';
+import { Notification } from './notification.model.js';
 
 const NotificationOutputSchema = z.object({
   id: z.string(),
@@ -65,13 +65,13 @@ export default async function notificationRoutes(app: FastifyInstance) {
       }
 
       const [items, total, unreadCount] = await Promise.all([
-        getNotificationModel.find(filter)
+        Notification.find(filter)
           .sort({ createdAt: -1 })
           .limit(query.limit)
           .skip(query.skip)
           .lean(),
-        getNotificationModel.countDocuments(filter),
-        getNotificationModel.countDocuments({
+        Notification.countDocuments(filter),
+        Notification.countDocuments({
           tenantId: user.tenantId,
           userId: user.sub,
           read: false
@@ -115,7 +115,7 @@ export default async function notificationRoutes(app: FastifyInstance) {
     handler: async (req, reply) => {
       const user = (req as any).user;
 
-      const count = await getNotificationModel.countDocuments({
+      const count = await Notification.countDocuments({
         tenantId: user.tenantId,
         userId: user.sub,
         read: false
@@ -138,7 +138,7 @@ export default async function notificationRoutes(app: FastifyInstance) {
       const user = (req as any).user;
       const { id } = req.params as { id: string };
 
-      const notification = await getNotificationModel.findOne({
+      const notification = await Notification.findOne({
         _id: id,
         tenantId: user.tenantId,
         userId: user.sub
@@ -171,7 +171,7 @@ export default async function notificationRoutes(app: FastifyInstance) {
     handler: async (req, reply) => {
       const user = (req as any).user;
 
-      const result = await getNotificationModel.updateMany(
+      const result = await Notification.updateMany(
         {
           tenantId: user.tenantId,
           userId: user.sub,
@@ -205,7 +205,7 @@ export default async function notificationRoutes(app: FastifyInstance) {
       const user = (req as any).user;
       const { id } = req.params as { id: string };
 
-      const result = await getNotificationModel.deleteOne({
+      const result = await Notification.deleteOne({
         _id: id,
         tenantId: user.tenantId,
         userId: user.sub
@@ -232,7 +232,7 @@ export default async function notificationRoutes(app: FastifyInstance) {
     handler: async (req, reply) => {
       const user = (req as any).user;
 
-      const result = await getNotificationModel.deleteMany({
+      const result = await Notification.deleteMany({
         tenantId: user.tenantId,
         userId: user.sub,
         read: true

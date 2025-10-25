@@ -1,5 +1,5 @@
 import { Schema, type HydratedDocument, type Model } from 'mongoose';
-import { getConnection } from '../../config/db';
+import { getConnection } from '../../config/db.js';
 
 export type NotificationType = 'info' | 'success' | 'warning' | 'error';
 export type NotificationChannel = 'in-app' | 'email' | 'push' | 'sms';
