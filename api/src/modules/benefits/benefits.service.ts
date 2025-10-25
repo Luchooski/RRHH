@@ -71,7 +71,7 @@ export async function listBenefits(
   if (filters.status) query.status = filters.status;
 
   const benefits = await Benefit.find(query).sort({ name: 1 }).lean();
-  return benefits as IBenefit[];
+  return benefits as unknown as IBenefit[];
 }
 
 /**
@@ -183,7 +183,7 @@ export async function assignBenefit(
   const assignment = await EmployeeBenefit.create({
     tenantId,
     employeeId: input.employeeId,
-    employeeName: `${employee.firstName} ${employee.lastName}`,
+    employeeName: employee.name,
     benefitId: input.benefitId,
     benefitName: benefit.name,
     benefitType: benefit.type,
@@ -232,7 +232,7 @@ export async function checkEligibility(
 
   // Verificar rol
   if (eligibility.roles && eligibility.roles.length > 0) {
-    if (!employee.position || !eligibility.roles.includes(employee.position)) {
+    if (!employee.role || !eligibility.roles.includes(employee.role)) {
       return { eligible: false, reason: 'Rol no elegible' };
     }
   }
@@ -260,7 +260,7 @@ export async function listEmployeeBenefits(
   if (filters.status) query.status = filters.status;
 
   const benefits = await EmployeeBenefit.find(query).sort({ startDate: -1 }).lean();
-  return benefits as IEmployeeBenefit[];
+  return benefits as unknown as IEmployeeBenefit[];
 }
 
 /**

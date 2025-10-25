@@ -122,7 +122,7 @@ export async function listLeaves(
     Leave.countDocuments(filter)
   ]);
 
-  return { items: items as LeaveDoc[], total };
+  return { items: items as unknown as LeaveDoc[], total };
 }
 
 /**
@@ -133,7 +133,7 @@ export async function getLeaveById(
   leaveId: string
 ): Promise<LeaveDoc | null> {
   const leave = await Leave.findOne({ _id: leaveId, tenantId }).lean();
-  return leave as LeaveDoc | null;
+  return leave as unknown as LeaveDoc | null;
 }
 
 /**

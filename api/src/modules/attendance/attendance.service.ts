@@ -283,10 +283,10 @@ export async function updateAttendance(
   }
 
   // Update allowed fields
-  const allowedFields = ['status', 'notes', 'checkIn', 'checkOut', 'breakMinutes', 'approvedBy', 'approvedAt'];
+  const allowedFields = ['status', 'notes', 'checkIn', 'checkOut', 'breakMinutes', 'approvedBy', 'approvedAt'] as const;
   allowedFields.forEach((field) => {
-    if (updates[field] !== undefined) {
-      (attendance as any)[field] = updates[field];
+    if ((updates as any)[field] !== undefined) {
+      (attendance as any)[field] = (updates as any)[field];
     }
   });
 

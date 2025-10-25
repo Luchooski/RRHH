@@ -49,7 +49,17 @@ interface ILeave {
   updatedAt: Date;
 }
 
-const LeaveSchema = new Schema<ILeave>(
+// ===== TIPOS =====
+export type LeaveDoc = ILeave & mongoose.Document & {
+  id: string;
+  isActiveOn(date: Date): boolean;
+};
+
+export interface LeaveModel extends Model<LeaveDoc> {
+  calculateBusinessDays(startDate: Date, endDate: Date, halfDay?: boolean): number;
+}
+
+const LeaveSchema = new Schema<LeaveDoc, LeaveModel>(
   {
     tenantId: { type: String, required: true, index: true },
     employeeId: { type: String, required: true, index: true },
@@ -137,15 +147,5 @@ LeaveSchema.statics.calculateBusinessDays = function(startDate: Date, endDate: D
   // Si es media jornada, dividir por 2
   return halfDay ? count / 2 : count;
 };
-
-// ===== TIPOS =====
-export type LeaveDoc = ILeave & mongoose.Document & {
-  id: string;
-  isActiveOn(date: Date): boolean;
-};
-
-export interface LeaveModel extends Model<LeaveDoc> {
-  calculateBusinessDays(startDate: Date, endDate: Date, halfDay?: boolean): number;
-}
 
 export const Leave = mongoose.model<LeaveDoc, LeaveModel>('Leave', LeaveSchema);

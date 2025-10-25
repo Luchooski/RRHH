@@ -109,8 +109,8 @@ export default async function auditRoutes(app: FastifyInstance) {
       response: {
         200: z.object({
           totalActions: z.number(),
-          byAction: z.record(z.number()),
-          byResource: z.record(z.number()),
+          byAction: z.record(z.string(), z.number()),
+          byResource: z.record(z.string(), z.number()),
           byUser: z.array(z.object({
             userId: z.string(),
             userName: z.string(),

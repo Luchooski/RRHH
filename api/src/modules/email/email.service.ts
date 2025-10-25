@@ -32,7 +32,7 @@ function getTransporter(): nodemailer.Transporter {
   if (transporter) return transporter;
 
   // Configuración de SMTP
-  transporter = nodemailer.createTransport({
+  const config: any = {
     host: env.SMTP_HOST || 'smtp.gmail.com',
     port: env.SMTP_PORT || 587,
     secure: env.SMTP_SECURE || false, // true for 465, false for other ports
@@ -40,7 +40,8 @@ function getTransporter(): nodemailer.Transporter {
       user: env.SMTP_USER,
       pass: env.SMTP_PASS,
     },
-  });
+  };
+  transporter = nodemailer.createTransport(config);
 
   return transporter;
 }

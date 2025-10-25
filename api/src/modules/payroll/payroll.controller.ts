@@ -7,7 +7,8 @@ const mapId = (d: any) => ({ ...d, id: d._id?.toString?.() ?? d.id });
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const q = PayrollQuerySchema.parse(req.query);
-    const data = await Service.listPayrolls(q);
+    const tenantId = (req as any).user?.tenantId;
+    const data = await Service.listPayrolls({ ...q, tenantId });
     const items = data.items.map(mapId).map(i => PayrollOutputSchema.parse({
       ...i, id: i._id?.toString?.() ?? i.id
     }));
@@ -17,7 +18,8 @@ export async function list(req: Request, res: Response, next: NextFunction) {
 
 export async function getById(req: Request, res: Response, next: NextFunction) {
   try {
-    const doc = await Service.getById(req.params.id);
+    const tenantId = (req as any).user?.tenantId;
+    const doc = await Service.getById(req.params.id, tenantId);
     if (!doc) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Liquidación no encontrada' } });
     res.json(PayrollOutputSchema.parse(mapId(doc)));
   } catch (err) { next(err); }
@@ -26,7 +28,8 @@ export async function getById(req: Request, res: Response, next: NextFunction) {
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {
     const input = PayrollCreateSchema.parse(req.body);
-    const created = await Service.createPayroll(input);
+    const tenantId = (req as any).user?.tenantId;
+    const created = await Service.createPayroll(input, tenantId);
     res.status(201).json(PayrollOutputSchema.parse(mapId(created)));
   } catch (err) { next(err); }
 }

@@ -132,7 +132,7 @@ export async function createTenant(input: CreateTenantInput): Promise<{ tenant: 
 export async function getTenantById(tenantId: string): Promise<TenantOutput | null> {
   const tenant = await Tenant.findById(tenantId).lean();
   if (!tenant) return null;
-  return mapToOutput(tenant as ITenant);
+  return mapToOutput(tenant as unknown as ITenant);
 }
 
 /**
@@ -141,7 +141,7 @@ export async function getTenantById(tenantId: string): Promise<TenantOutput | nu
 export async function getTenantByEmail(email: string): Promise<TenantOutput | null> {
   const tenant = await Tenant.findOne({ email }).lean();
   if (!tenant) return null;
-  return mapToOutput(tenant as ITenant);
+  return mapToOutput(tenant as unknown as ITenant);
 }
 
 /**
@@ -150,7 +150,7 @@ export async function getTenantByEmail(email: string): Promise<TenantOutput | nu
 export async function updateTenant(tenantId: string, input: UpdateTenantInput): Promise<TenantOutput | null> {
   const tenant = await Tenant.findByIdAndUpdate(tenantId, { $set: input }, { new: true, runValidators: true }).lean();
   if (!tenant) return null;
-  return mapToOutput(tenant as ITenant);
+  return mapToOutput(tenant as unknown as ITenant);
 }
 
 /**
@@ -177,7 +177,7 @@ export async function listTenants(filters?: {
 
   const tenants = await Tenant.find(query).sort({ createdAt: -1 }).limit(100).lean();
 
-  return tenants.map((t) => mapToOutput(t as ITenant));
+  return tenants.map((t) => mapToOutput(t as unknown as ITenant));
 }
 
 /**

@@ -162,7 +162,10 @@ AttendanceSchema.statics.getSummary = async function(
   };
 
   attendances.forEach((att: any) => {
-    summary[att.status]++;
+    const status = att.status as keyof typeof summary;
+    if (status && status in summary && typeof summary[status] === 'number') {
+      (summary[status] as number)++;
+    }
     summary.totalHours += att.hoursWorked || 0;
     summary.regularHours += att.regularHours || 0;
     summary.overtimeHours += att.overtimeHours || 0;
