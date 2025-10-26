@@ -308,7 +308,7 @@ export async function getUserNotifications(params: {
     .sort({ createdAt: -1 })
     .limit(limit)
     .skip(skip)
-    .lean<NotificationLean>();
+    .lean<NotificationLean[]>();
 
   const total = await Notification.countDocuments(query);
 
