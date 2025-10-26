@@ -1,10 +1,11 @@
-import type { FastifyPluginAsync } from 'fastify';
+import fp from 'fastify-plugin';
+ import type { FastifyInstance } from 'fastify';
 
-export const healthRoutes: FastifyPluginAsync = async (app) => {
-  // RUTA RELATIVA: el '/api/v1' lo aporta app.register(...)
-  app.get('/health', async () => {
-    return { ok: true, service: 'api', time: new Date().toISOString() };
-  });
-};
-
-export default healthRoutes;
+export default fp(async function healthRoutes(app: FastifyInstance) {
+  // Ruta RELATIVA (sin /api/v1). El prefijo se pone en app.ts
+  app.get('/health', async () => ({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  }));
+});
