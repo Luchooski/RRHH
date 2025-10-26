@@ -1,80 +1,49 @@
-import mongoose, { Schema, Document } from 'mongoose';
+// api/src/modules/notifications/notification.model.ts
+import mongoose, { Schema, Model, Document } from 'mongoose';
 
-export type NotificationType = 'info' | 'success' | 'warning' | 'error';
-export type NotificationChannel = 'in-app' | 'email' | 'push' | 'sms';
-export type NotificationPriority = 'low' | 'normal' | 'high' | 'urgent';
-
-export interface INotification {
+export interface INotification extends Document {
   tenantId: string;
-  userId: string;
-  userName: string;
-  userEmail?: string;
-  type: NotificationType;
-  channels: NotificationChannel[];
-  priority: NotificationPriority;
-  title: string;
-  message: string;
-  category: string; // 'leave', 'evaluation', 'attendance', 'benefit', 'payroll', 'system', etc.
-  actionUrl?: string;
-  actionLabel?: string;
-  data?: Record<string, any>;
-  isRead: boolean;
-  readAt?: Date;
-  sentAt?: Date;
-  emailSent?: boolean;
-  emailSentAt?: Date;
-  pushSent?: boolean;
-  pushSentAt?: Date;
+  cycleId: string;
+  evaluatedEmployeeId: string;
+  timestamp: Date;
+  expiresAt?: Date;
+  type: string;
+  payload: Record<string, unknown>;
+  read: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export type NotificationDoc = INotification & Document;
+// Nota importante sobre índices:
+// Elegimos declarar TODOS los índices usando schema.index(...)
+// y NO usamos "index: true" en los paths para evitar duplicidad.
 
 const NotificationSchema = new Schema<INotification>(
   {
-    tenantId: { type: String, required: true, index: true },
-    userId: { type: String, required: true, index: true },
-    userName: { type: String, required: true },
-    userEmail: { type: String },
-    type: {
-      type: String,
-      enum: ['info', 'success', 'warning', 'error'],
-      default: 'info',
-    },
-    channels: [
-      {
-        type: String,
-        enum: ['in-app', 'email', 'push', 'sms'],
-      },
-    ],
-    priority: {
-      type: String,
-      enum: ['low', 'normal', 'high', 'urgent'],
-      default: 'normal',
-    },
-    title: { type: String, required: true },
-    message: { type: String, required: true },
-    category: { type: String, required: true, index: true },
-    actionUrl: { type: String },
-    actionLabel: { type: String },
-    data: { type: Schema.Types.Mixed },
-    isRead: { type: Boolean, default: false, index: true },
-    readAt: { type: Date },
-    sentAt: { type: Date },
-    emailSent: { type: Boolean, default: false },
-    emailSentAt: { type: Date },
-    pushSent: { type: Boolean, default: false },
-    pushSentAt: { type: Date },
+    tenantId: { type: String, required: true },
+    cycleId: { type: String, required: true },
+    evaluatedEmployeeId: { type: String, required: true },
+    timestamp: { type: Date, default: Date.now },
+    expiresAt: { type: Date },
+    type: { type: String, required: true },
+    payload: { type: Object, required: true },
+    read: { type: Boolean, default: false },
   },
   {
     timestamps: true,
+    versionKey: false,
   }
 );
 
-// Compound indexes for common queries
-NotificationSchema.index({ tenantId: 1, userId: 1, isRead: 1 });
-NotificationSchema.index({ tenantId: 1, userId: 1, createdAt: -1 });
-NotificationSchema.index({ tenantId: 1, category: 1, createdAt: -1 });
+// Definimos índices SOLO acá (sin "index: true" en los paths)
+NotificationSchema.index({ tenantId: 1, cycleId: 1, evaluatedEmployeeId: 1 });
+NotificationSchema.index({ timestamp: 1 });
+NotificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); 
+// ^ Si tu intención era TTL (fecha exacta en expiresAt). Si NO usás TTL, quitá "expireAfterSeconds".
 
-export const Notification = mongoose.model('Notification', NotificationSchema);
+// Anti OverwriteModelError (ESM + hot reload/monorepo)
+export const Notification: Model<INotification> =
+  (mongoose.models.Notification as Model<INotification>) ||
+  mongoose.model<INotification>('Notification', NotificationSchema);
+
+export default Notification;
