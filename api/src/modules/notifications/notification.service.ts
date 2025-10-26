@@ -1,4 +1,11 @@
-import { getNotificationModel, type NotificationType, type NotificationChannel, type NotificationPriority } from './notification.model.js';
+import {
+  getNotificationModel,
+  type INotification,
+  type NotificationType,
+  type NotificationChannel,
+  type NotificationPriority,
+} from './notification.model.js';
+import { Types, type LeanDocument } from 'mongoose';
 // Notification templates
 export const NOTIFICATION_TEMPLATES = {
   // Leave notifications
@@ -138,17 +145,32 @@ export const NOTIFICATION_TEMPLATES = {
   },
 };
 
-// Replace template variables
-function replaceVariables(template: string, variables: Record<string, any>): string {
+// Tipos auxiliares
+type TemplateVars = Record<string, string | number | boolean | Date>;
+type NotificationLean = LeanDocument<INotification> & {
+  _id: Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+  readAt?: Date;
+};
+
+// Replace template variables (tipado estricto)
+function replaceVariables(template: string, variables: TemplateVars): string {
   let result = template;
   for (const [key, value] of Object.entries(variables)) {
-    result = result.replace(new RegExp(`{{${key}}}`, 'g'), String(value));
+    const v =
+      value instanceof Date
+        ? value.toISOString()
+        : typeof value === 'boolean'
+        ? String(value)
+        : String(value);
+    result = result.replace(new RegExp(`{{${key}}}`, 'g'), v);
   }
   return result;
 }
 
-// Create notification
-export async function createNotification(params: {
+// DTOs estrictos para inputs del servicio
+type CreateNotificationParams = {
   tenantId: string;
   userId: string;
   userName: string;
@@ -162,11 +184,34 @@ export async function createNotification(params: {
   category?: string;
   actionUrl?: string;
   actionLabel?: string;
-  data?: Record<string, any>;
-  variables?: Record<string, any>;
-}): Promise<any> {
-  const Notification = getNotificationModel();
-  const {
+  data?: Record<string, unknown>;
+  variables?: TemplateVars;
+};
+
+type CreateNotificationDTO = {
+  tenantId: string;
+  userId: string;
+  userName: string;
+  userEmail?: string;
+  channels: NotificationChannel[];
+  title: string;
+  message: string;
+  type: NotificationType;
+  priority: NotificationPriority;
+  category: string;
+  actionUrl?: string;
+  actionLabel?: string;
+  data?: Record<string, unknown>;
+  sentAt?: Date;
+  emailSent?: boolean;
+  emailSentAt?: Date;
+  pushSent?: boolean;
+  pushSentAt?: Date;
+};
+
+// Create notification
+export async function createNotification(params: CreateNotificationParams): Promise<INotification> {
+   const {
     tenantId,
     userId,
     userName,
@@ -184,12 +229,17 @@ export async function createNotification(params: {
     variables = {},
   } = params;
 
-  let notificationData: any = {
+  let notificationData: CreateNotificationDTO = {
     tenantId,
     userId,
     userName,
     userEmail,
     channels,
+    title: '', // se completará
+    message: '',
+    type: (type ?? 'info') as NotificationType,
+    priority: (priority ?? 'normal') as NotificationPriority,
+    category: category ?? 'system',
   };
 
   if (templateKey && NOTIFICATION_TEMPLATES[templateKey]) {
@@ -201,7 +251,7 @@ export async function createNotification(params: {
       type: template.type,
       priority: template.priority,
       category: template.category,
-      actionLabel: (template as any).actionLabel,
+      actionLabel: (template as { actionLabel?: string }).actionLabel,
     };
   }
 
@@ -217,22 +267,24 @@ export async function createNotification(params: {
 
   notificationData.sentAt = new Date();
 
+  const Notification = getNotificationModel();
   const notification = await Notification.create(notificationData);
 
   // TODO: Implement actual email/push sending here
-  // For now, just mark as sent
-  if (channels.includes('email') && userEmail) {
-    notification.emailSent = true;
-    notification.emailSentAt = new Date();
-  }
-  if (channels.includes('push')) {
-    notification.pushSent = true;
-    notification.pushSentAt = new Date();
-  }
+   if (channels.includes('email') && userEmail) {
+     notification.emailSent = true;
+     notification.emailSentAt = new Date();
+   }
+   if (channels.includes('push')) {
+     notification.pushSent = true;
+     notification.pushSentAt = new Date();
+   }
+ 
+   await notification.save();
+ 
 
-  await notification.save();
-  return notification.toObject();
-}
+  return notification.toObject() as INotification;
+ }
 
 // Get user notifications
 export async function getUserNotifications(params: {
@@ -242,7 +294,7 @@ export async function getUserNotifications(params: {
   category?: string;
   limit?: number;
   skip?: number;
-}): Promise<any> {
+}): Promise<{ notifications: NotificationLean[]; total: number; limit: number; skip: number }> {
   const { tenantId, userId, isRead, category, limit = 50, skip = 0 } = params;
   const Notification = getNotificationModel();
 
@@ -267,31 +319,35 @@ export async function getUserNotifications(params: {
 }
 
 // Mark notification as read
-export async function markAsRead(params: {
-  tenantId: string;
-  userId: string;
-  notificationId: string;
-}): Promise<any> {
-  const { tenantId, userId, notificationId } = params;
-
-  const notification = await Notification.findOneAndUpdate(
-    { _id: notificationId, tenantId, userId },
-    { isRead: true, readAt: new Date() },
-    { new: true }
-  );
-
-  if (!notification) {
-    throw new Error('Notification not found');
-  }
-
-  return notification.toObject();
-}
+ export async function markAsRead(params: {
+   tenantId: string;
+   userId: string;
+   notificationId: string;
+}): Promise<INotification> {
+   const { tenantId, userId, notificationId } = params;
+   const Notification = getNotificationModel();
+ 
+   const notification = await Notification.findOne({
+     _id: notificationId,
+     tenantId,
+     userId,
+   });
+ 
+   if (!notification) {
+     throw new Error('Notification not found');
+   }
+ 
+  if (!notification.isRead) {
+    notification.isRead = true;
+     notification.readAt = new Date();
+     await notification.save();
+   }
 
 // Mark all as read
 export async function markAllAsRead(params: {
   tenantId: string;
   userId: string;
-}): Promise<any> {
+}): Promise<{ success: true; modifiedCount: number }> {
   const { tenantId, userId } = params;
   const Notification = getNotificationModel();
 
@@ -311,7 +367,7 @@ export async function deleteNotification(params: {
   tenantId: string;
   userId: string;
   notificationId: string;
-}): Promise<any> {
+}): Promise<{ success: true }> {
   const { tenantId, userId, notificationId } = params;
   const Notification = getNotificationModel();
 
@@ -332,7 +388,7 @@ export async function deleteNotification(params: {
 export async function getNotificationStats(params: {
   tenantId: string;
   userId: string;
-}): Promise<any> {
+}): Promise<{ total: number; unread: number; read: number; byCategory: Record<string, number> }> {
   const { tenantId, userId } = params;
   const Notification = getNotificationModel();
 
@@ -369,9 +425,9 @@ export async function bulkCreateNotifications(params: {
   category?: string;
   actionUrl?: string;
   actionLabel?: string;
-  data?: Record<string, any>;
-  variables?: Record<string, any>;
-}): Promise<any> {
+  data?: Record<string, unknown>;
+  variables?: TemplateVars;
+  }): Promise<{ success: true; count: number }> {
   const Notification = getNotificationModel();
   const {
     tenantId,
@@ -389,14 +445,19 @@ export async function bulkCreateNotifications(params: {
     variables = {},
   } = params;
 
-  const notifications = users.map((user) => {
-    let notificationData: any = {
+  const notifications: CreateNotificationDTO[] = users.map((user) => {
+    let notificationData: CreateNotificationDTO = {
       tenantId,
       userId: user.userId,
       userName: user.userName,
       userEmail: user.userEmail,
       channels,
       sentAt: new Date(),
+      title: '',
+      message: '',
+      type: (type ?? 'info') as NotificationType,
+      priority: (priority ?? 'normal') as NotificationPriority,
+      category: category ?? 'system',
     };
 
     if (templateKey && NOTIFICATION_TEMPLATES[templateKey]) {
@@ -408,7 +469,7 @@ export async function bulkCreateNotifications(params: {
         type: template.type,
         priority: template.priority,
         category: template.category,
-        actionLabel: (template as any).actionLabel,
+        actionLabel: (template as { actionLabel?: string }).actionLabel,
       };
     }
 
@@ -431,3 +492,4 @@ export async function bulkCreateNotifications(params: {
     count: result.length,
   };
 }
+
